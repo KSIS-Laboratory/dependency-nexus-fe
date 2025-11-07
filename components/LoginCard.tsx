@@ -8,7 +8,7 @@ export function LoginCard({ onLogin }: LoginCardProps) {
   return (
     <div className="card w-full bg-base-100 shadow">
       <div className="card-body">
-        <h2 className="card-title text-2xl">
+        <h2 className="card-title text-2xl text-base-content">
           Sign in to get started
         </h2>
         
@@ -21,7 +21,7 @@ export function LoginCard({ onLogin }: LoginCardProps) {
           Continue with GitHub
         </button>
 
-        <p className="text-center text-sm opacity-60">
+        <p className="text-center text-sm text-base-content opacity-60">
           Sign in with your GitHub account to access your repositories
         </p>
       </div>

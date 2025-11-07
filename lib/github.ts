@@ -4,6 +4,7 @@ export interface Repository {
   id: number;
   name: string;
   full_name: string;
+  owner: string;
   description?: string;
   private: boolean;
   html_url: string;

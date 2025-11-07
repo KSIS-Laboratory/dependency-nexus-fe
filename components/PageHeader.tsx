@@ -19,7 +19,7 @@ export function PageHeader({ children, user, showUser = false }: PageHeaderProps
     <nav className="bg-base-100 border-b border-base-300">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-4">
-          <div className="flex items-center gap-4 flex-1">
+          <div className="flex items-center gap-4 flex-1 text-base-content">
             {children}
           </div>
           
@@ -38,11 +38,11 @@ export function PageHeader({ children, user, showUser = false }: PageHeaderProps
                   />
                 )}
                 <div className="hidden sm:block">
-                  <p className="text-sm font-medium">
+                  <p className="text-sm font-medium text-base-content">
                     {user.username}
                   </p>
                   {user.email && (
-                    <p className="text-xs opacity-60">
+                    <p className="text-xs text-base-content opacity-60">
                       {user.email}
                     </p>
                   )}

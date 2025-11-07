@@ -45,10 +45,10 @@ export function ThemeToggle() {
       />
       
       {/* Sun icon */}
-      <Sun className="swap-off h-5 w-5" />
+      <Sun className="swap-off h-5 w-5 text-base-content" />
       
       {/* Moon icon */}
-      <Moon className="swap-on h-5 w-5" />
+      <Moon className="swap-on h-5 w-5 text-base-content" />
     </label>
   );
 }

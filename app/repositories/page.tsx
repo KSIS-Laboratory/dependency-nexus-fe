@@ -10,7 +10,8 @@ import { ErrorMessage } from "@/components/ErrorMessage";
 import { RepositoryCard } from "@/components/RepositoryCard";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
-import { FolderGit2 } from "lucide-react";
+import { FolderGit2, ArrowLeft } from "lucide-react";
+
 
 export default function RepositoriesPage() {
   const router = useRouter();
@@ -56,22 +57,23 @@ export default function RepositoriesPage() {
   return (
     <div className="min-h-screen bg-base-200">
       <PageHeader user={user} showUser>
-        <h1 className="text-xl font-bold">Your Repositories</h1>
         <button
-          onClick={() => router.push("/dashboard")}
-          className="btn btn-ghost btn-sm ml-auto"
-        >
-          Back to Dashboard
-        </button>
+            onClick={() => router.push("/dashboard")}
+            className="btn btn-ghost btn-circle btn-sm"
+            aria-label="Back to repositories"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+        <h1 className="text-xl font-bold text-base-content">Your Repositories</h1>
       </PageHeader>
 
       <main className="container mx-auto p-4 sm:p-6 lg:p-8">
         <div className="mb-6">
-          <h2 className="text-3xl font-bold">
-            Repositories 
-            <span className="badge badge-lg badge-neutral ml-3">{repositories.length}</span>
+          <h2 className="text-3xl font-bold text-base-content flex items-center gap-3">
+            <span>Repositories</span>
+            <span className="badge badge-lg badge-outline ml-3 text-base-content">{repositories.length}</span>
           </h2>
-          <p className="mt-2 opacity-70">
+          <p className="mt-2 opacity-70 text-base-content">
             Click on a repository to analyze its dependencies
           </p>
         </div>

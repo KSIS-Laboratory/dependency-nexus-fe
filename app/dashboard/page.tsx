@@ -50,7 +50,7 @@ export default function Dashboard() {
         </h1>
         <button
           onClick={handleLogout}
-          className="btn btn-neutral btn-sm gap-2 ml-auto"
+          className="btn btn-outline btn-error gap-2 ml-auto "
         >
           <LogOut className="h-4 w-4" />
           Logout
@@ -60,21 +60,21 @@ export default function Dashboard() {
       <main className="container mx-auto p-4 sm:p-6 lg:p-8">
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
-            <h2 className="card-title text-3xl">
+            <h2 className="card-title text-3xl text-base-content flex items-center gap-3">
               Welcome, {user?.username}!
             </h2>
-            <p className="opacity-70">
+            <p className="opacity-70 text-base-content">
               You are successfully authenticated with GitHub.
             </p>
             {user?.email && (
-              <p className="text-sm opacity-60">
+              <p className="text-sm opacity-60 text-base-content">
                 Email: {user.email}
               </p>
             )}
             <div className="card-actions mt-6">
               <button
                 onClick={() => router.push("/repositories")}
-                className="btn btn-neutral btn-sm"
+                className="btn btn-outline btn-primary"
               >
                 View Repositories & Analyze Dependencies
               </button>

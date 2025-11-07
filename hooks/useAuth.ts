@@ -7,6 +7,7 @@ export interface UseAuthResult {
   isAuthenticated: boolean;
   isLoading: boolean;
   githubToken: string | null;
+  jwtToken: string | null;
   logout: () => void;
 }
 
@@ -15,6 +16,7 @@ export function useAuth(): UseAuthResult {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [githubToken, setGithubToken] = useState<string | null>(null);
+  const [jwtToken, setJwtToken] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -23,6 +25,7 @@ export function useAuth(): UseAuthResult {
       if (!token) {
         setIsAuthenticated(false);
         setGithubToken(null);
+        setJwtToken(null);
         setIsLoading(false);
         return;
       }
@@ -32,9 +35,11 @@ export function useAuth(): UseAuthResult {
       if (ghToken) {
         setIsAuthenticated(true);
         setGithubToken(ghToken);
+        setJwtToken(token); // Store the JWT token itself
       } else {
         setIsAuthenticated(false);
         setGithubToken(null);
+        setJwtToken(null);
       }
       
       setIsLoading(false);
@@ -47,6 +52,7 @@ export function useAuth(): UseAuthResult {
     AuthService.logout();
     setIsAuthenticated(false);
     setGithubToken(null);
+    setJwtToken(null);
     router.push("/");
   };
 
@@ -54,6 +60,7 @@ export function useAuth(): UseAuthResult {
     isAuthenticated,
     isLoading,
     githubToken,
+    jwtToken,
     logout,
   };
 }

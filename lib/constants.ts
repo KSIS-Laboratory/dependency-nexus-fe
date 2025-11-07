@@ -32,4 +32,12 @@ export const API_ENDPOINTS = {
     FILES: (owner: string, repo: string) =>
       `/api/github/repositories/${owner}/${repo}/files`,
   },
+  VULNERABILITIES: {
+    SCAN: "/api/vulnerabilities/scan",
+    SCAN_SINGLE: (ecosystem: string, packageName: string, version?: string) => {
+      const baseUrl = `/api/vulnerabilities/scan/${ecosystem}/${packageName}`;
+      return version ? `${baseUrl}?version=${version}` : baseUrl;
+    },
+    DETAIL: (vulnId: string) => `/api/vulnerabilities/detail/${vulnId}`,
+  },
 } as const;
