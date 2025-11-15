@@ -1,5 +1,6 @@
 // API Configuration
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const API_BASE_URL = API_URL; // Alias for consistency
 
 // Storage Keys
 export const STORAGE_KEYS = {
@@ -39,5 +40,18 @@ export const API_ENDPOINTS = {
       return version ? `${baseUrl}?version=${version}` : baseUrl;
     },
     DETAIL: (vulnId: string) => `/api/vulnerabilities/detail/${vulnId}`,
+    SCAN_AND_SAVE: "/api/vulnerabilities/scan-and-save",
+    HISTORY: (repositoryId: string) => `/api/vulnerabilities/history/${repositoryId}`,
+    HISTORY_DETAIL: (repositoryId: string) => `/api/vulnerabilities/history/${repositoryId}/detail`,
+  },
+  SCAN_HISTORY: {
+    CREATE_SCAN: "/api/scan-history/scans",
+    DETECT_CHANGES: "/api/scan-history/detect-changes",
+    HISTORY: (repoId: string) => `/api/scan-history/repositories/${repoId}/history`,
+    VERSIONS: (repoId: string) => `/api/scan-history/repositories/${repoId}/versions`,
+    LATEST: (repoId: string) => `/api/scan-history/repositories/${repoId}/latest`,
+    VERSION: (repoId: string, versionId: string) => `/api/scan-history/repositories/${repoId}/versions/${versionId}`,
+    COMPARE: (repoId: string) => `/api/scan-history/repositories/${repoId}/compare`,
+    HEALTH: "/api/scan-history/health",
   },
 } as const;

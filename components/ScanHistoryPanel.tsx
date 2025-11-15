@@ -1,0 +1,303 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Clock, GitBranch, Package, TrendingUp, TrendingDown, AlertCircle } from "lucide-react";
+import { useScanHistory } from "@/hooks/useScanHistory";
+import type { DependencyScanVersion, DependencyChange } from "@/lib/scan-history";
+
+interface ScanHistoryPanelProps {
+  repositoryId: string;
+  repositoryName: string;
+  token: string;
+}
+
+export function ScanHistoryPanel({
+  repositoryId,
+  repositoryName,
+  token,
+}: ScanHistoryPanelProps) {
+  const {
+    loading,
+    error,
+    versionList,
+    latestScan,
+    comparison,
+    fetchVersionList,
+    fetchLatestScan,
+    compareScans,
+  } = useScanHistory({ repositoryId, repositoryName, token });
+
+  const [selectedVersions, setSelectedVersions] = useState<{
+    from?: string;
+    to?: string;
+  }>({});
+
+  useEffect(() => {
+    fetchVersionList();
+    fetchLatestScan();
+  }, [fetchVersionList, fetchLatestScan]);
+
+  const handleCompare = async () => {
+    if (selectedVersions.from && selectedVersions.to) {
+      await compareScans(selectedVersions.from, selectedVersions.to);
+    }
+  };
+
+  const getChangeIcon = (changeType: string) => {
+    switch (changeType) {
+      case "added":
+        return <TrendingUp className="h-4 w-4 text-success" />;
+      case "removed":
+        return <TrendingDown className="h-4 w-4 text-error" />;
+      case "updated":
+        return <AlertCircle className="h-4 w-4 text-warning" />;
+      default:
+        return null;
+    }
+  };
+
+  if (loading && !versionList) {
+    return (
+      <div className="card bg-base-100 shadow-xl">
+        <div className="card-body">
+          <div className="flex items-center justify-center gap-2">
+            <span className="loading loading-spinner loading-md"></span>
+            <p>กำลังโหลดประวัติการสแกน...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="alert alert-error">
+        <AlertCircle className="h-5 w-5" />
+        <span>{error}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Latest Scan Summary */}
+      {latestScan && (
+        <div className="card bg-linear-to-r from-primary/10 to-secondary/10 border border-primary/20">
+          <div className="card-body">
+            <h3 className="card-title text-primary">
+              <Package className="h-5 w-5" />
+              สแกนล่าสุด
+            </h3>
+            <div className="stats stats-vertical lg:stats-horizontal shadow">
+              <div className="stat">
+                <div className="stat-title">Version</div>
+                <div className="stat-value text-2xl">{latestScan.version_id}</div>
+                <div className="stat-desc">
+                  <Clock className="inline h-3 w-3 mr-1" />
+                  {new Date(latestScan.scan_timestamp).toLocaleString("th-TH")}
+                </div>
+              </div>
+              <div className="stat">
+                <div className="stat-title">Dependencies</div>
+                <div className="stat-value text-2xl text-primary">
+                  {latestScan.total_count}
+                </div>
+                <div className="stat-desc">
+                  {latestScan.package_managers.join(", ")}
+                </div>
+              </div>
+              {latestScan.commit_hash && (
+                <div className="stat">
+                  <div className="stat-title">Commit</div>
+                  <div className="stat-value text-sm font-mono">
+                    {latestScan.commit_hash.substring(0, 7)}
+                  </div>
+                  <div className="stat-desc">
+                    <GitBranch className="inline h-3 w-3 mr-1" />
+                    {latestScan.branch}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Version List */}
+      {versionList && versionList.versions.length > 0 && (
+        <div className="card bg-base-100 shadow-xl">
+          <div className="card-body">
+            <h3 className="card-title">ประวัติการสแกน</h3>
+            <div className="overflow-x-auto">
+              <table className="table table-zebra">
+                <thead>
+                  <tr>
+                    <th>Version</th>
+                    <th>วันที่</th>
+                    <th>จำนวน Dependencies</th>
+                    <th>Commit</th>
+                    <th>เปรียบเทียบ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {versionList.versions.map((version) => (
+                    <tr key={version.version_id}>
+                      <td>
+                        <span className="badge badge-primary">{version.version_id}</span>
+                      </td>
+                      <td className="text-sm">
+                        {new Date(version.scan_timestamp).toLocaleString("th-TH")}
+                      </td>
+                      <td>
+                        <span className="badge badge-ghost">{version.total_count}</span>
+                      </td>
+                      <td>
+                        {version.commit_hash ? (
+                          <code className="text-xs">{version.commit_hash.substring(0, 7)}</code>
+                        ) : (
+                          <span className="text-base-content/50">-</span>
+                        )}
+                      </td>
+                      <td>
+                        <div className="join">
+                          <button
+                            className="btn btn-xs join-item"
+                            onClick={() =>
+                              setSelectedVersions((prev) => ({
+                                ...prev,
+                                from: version.version_id,
+                              }))
+                            }
+                          >
+                            From
+                          </button>
+                          <button
+                            className="btn btn-xs join-item"
+                            onClick={() =>
+                              setSelectedVersions((prev) => ({
+                                ...prev,
+                                to: version.version_id,
+                              }))
+                            }
+                          >
+                            To
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Compare Section */}
+            {selectedVersions.from && selectedVersions.to && (
+              <div className="card bg-base-200 mt-4">
+                <div className="card-body">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="badge badge-outline">{selectedVersions.from}</span>
+                      <span>→</span>
+                      <span className="badge badge-outline">{selectedVersions.to}</span>
+                    </div>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={handleCompare}
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <span className="loading loading-spinner loading-xs"></span>
+                      ) : (
+                        "เปรียบเทียบ"
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Comparison Results */}
+      {comparison && (
+        <div className="card bg-base-100 shadow-xl">
+          <div className="card-body">
+            <h3 className="card-title">ผลการเปรียบเทียบ</h3>
+            
+            <div className="stats stats-vertical lg:stats-horizontal shadow">
+              <div className="stat">
+                <div className="stat-figure text-success">
+                  <TrendingUp className="h-8 w-8" />
+                </div>
+                <div className="stat-title">เพิ่ม</div>
+                <div className="stat-value text-success">{comparison.added_count}</div>
+              </div>
+              <div className="stat">
+                <div className="stat-figure text-error">
+                  <TrendingDown className="h-8 w-8" />
+                </div>
+                <div className="stat-title">ลบ</div>
+                <div className="stat-value text-error">{comparison.removed_count}</div>
+              </div>
+              <div className="stat">
+                <div className="stat-figure text-warning">
+                  <AlertCircle className="h-8 w-8" />
+                </div>
+                <div className="stat-title">อัปเดต</div>
+                <div className="stat-value text-warning">{comparison.updated_count}</div>
+              </div>
+            </div>
+
+            {comparison.changes.length > 0 && (
+              <div className="mt-4">
+                <h4 className="font-bold mb-2">รายละเอียดการเปลี่ยนแปลง</h4>
+                <div className="space-y-2">
+                  {comparison.changes.map((change, idx) => (
+                    <div key={idx} className="flex items-center gap-3 p-3 bg-base-200 rounded-lg">
+                      {getChangeIcon(change.change_type)}
+                      <div className="flex-1">
+                        <div className="font-semibold">{change.dependency_name}</div>
+                        <div className="text-sm text-base-content/70">
+                          {change.change_type === "added" && (
+                            <span className="text-success">+ {change.new_version}</span>
+                          )}
+                          {change.change_type === "removed" && (
+                            <span className="text-error">- {change.old_version}</span>
+                          )}
+                          {change.change_type === "updated" && (
+                            <span>
+                              {change.old_version} → <span className="text-warning">{change.new_version}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="badge badge-sm badge-outline">
+                        {change.package_manager}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {versionList && versionList.versions.length === 0 && (
+        <div className="hero bg-base-200 rounded-lg py-12">
+          <div className="hero-content text-center">
+            <div className="max-w-md">
+              <Package className="h-16 w-16 mx-auto text-base-content/30 mb-4" />
+              <h3 className="text-xl font-bold">ยังไม่มีประวัติการสแกน</h3>
+              <p className="py-4 text-base-content/70">
+                เริ่มสแกน dependencies เพื่อติดตามการเปลี่ยนแปลง
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

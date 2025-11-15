@@ -29,9 +29,14 @@ export default function RepositoriesPage() {
     loadUser();
   }, [isAuthenticated]);
 
-  // Redirect if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.replace("/");
+    }
+  }, [authLoading, isAuthenticated, router]);
+
+  // Redirect in progress
   if (!authLoading && !isAuthenticated) {
-    router.push("/");
     return null;
   }
 

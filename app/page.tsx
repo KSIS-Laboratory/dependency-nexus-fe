@@ -45,7 +45,7 @@ export default function Home() {
   }, [router, searchParams]);
 
   const handleGitHubLogin = () => {
-    window.location.href = AuthService.getGitHubLoginUrl();
+    globalThis.location.href = AuthService.getGitHubLoginUrl();
   };
 
   if (isChecking) {

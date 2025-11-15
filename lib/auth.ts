@@ -1,3 +1,5 @@
+import { API_ENDPOINTS } from "./constants";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export interface User {
@@ -14,47 +16,47 @@ export interface TokenData {
 }
 
 export class AuthService {
-  private static TOKEN_KEY = "auth_token";
-  private static REFRESH_TOKEN_KEY = "refresh_token";
-  private static TOKEN_EXPIRY_KEY = "token_expiry";
+  private static readonly TOKEN_KEY = "auth_token";
+  private static readonly REFRESH_TOKEN_KEY = "refresh_token";
+  private static readonly TOKEN_EXPIRY_KEY = "token_expiry";
 
   static getToken(): string | null {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem(this.TOKEN_KEY);
+    if (globalThis.window === undefined) return null;
+    return globalThis.window.localStorage.getItem(this.TOKEN_KEY);
   }
 
   static setToken(token: string): void {
-    if (typeof window === "undefined") return;
-    localStorage.setItem(this.TOKEN_KEY, token);
+    if (globalThis.window === undefined) return;
+    globalThis.window.localStorage.setItem(this.TOKEN_KEY, token);
   }
 
   static getRefreshToken(): string | null {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
+    if (globalThis.window === undefined) return null;
+    return globalThis.window.localStorage.getItem(this.REFRESH_TOKEN_KEY);
   }
 
   static setRefreshToken(token: string): void {
-    if (typeof window === "undefined") return;
-    localStorage.setItem(this.REFRESH_TOKEN_KEY, token);
+    if (globalThis.window === undefined) return;
+    globalThis.window.localStorage.setItem(this.REFRESH_TOKEN_KEY, token);
   }
 
   static getTokenExpiry(): number | null {
-    if (typeof window === "undefined") return null;
-    const expiry = localStorage.getItem(this.TOKEN_EXPIRY_KEY);
-    return expiry ? parseInt(expiry) : null;
+    if (globalThis.window === undefined) return null;
+    const expiry = globalThis.window.localStorage.getItem(this.TOKEN_EXPIRY_KEY);
+    return expiry ? Number.parseInt(expiry) : null;
   }
 
   static setTokenExpiry(expiresIn: number): void {
-    if (typeof window === "undefined") return;
+    if (globalThis.window === undefined) return;
     const expiryTime = Date.now() + expiresIn * 1000;
-    localStorage.setItem(this.TOKEN_EXPIRY_KEY, expiryTime.toString());
+    globalThis.window.localStorage.setItem(this.TOKEN_EXPIRY_KEY, expiryTime.toString());
   }
 
   static removeToken(): void {
-    if (typeof window === "undefined") return;
-    localStorage.removeItem(this.TOKEN_KEY);
-    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
-    localStorage.removeItem(this.TOKEN_EXPIRY_KEY);
+    if (globalThis.window === undefined) return;
+    globalThis.window.localStorage.removeItem(this.TOKEN_KEY);
+    globalThis.window.localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+    globalThis.window.localStorage.removeItem(this.TOKEN_EXPIRY_KEY);
   }
 
   static isAuthenticated(): boolean {
@@ -73,7 +75,7 @@ export class AuthService {
 
     try {
       const response = await fetch(
-        `${API_URL}/api/auth/refresh?refresh_token=${refreshToken}`,
+        `${API_URL}${API_ENDPOINTS.AUTH.REFRESH}?refresh_token=${refreshToken}`,
         { method: "POST" }
       );
 
@@ -116,14 +118,22 @@ export class AuthService {
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/auth/me?token=${token}`);
+      const response = await fetch(`${API_URL}${API_ENDPOINTS.AUTH.ME}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (!response.ok) {
         // Try refreshing token if request fails
         const refreshed = await this.refreshAccessToken();
         if (refreshed) {
           // Retry with new token
           const newToken = this.getToken();
-          const retryResponse = await fetch(`${API_URL}/api/auth/me?token=${newToken}`);
+          const retryResponse = await fetch(`${API_URL}${API_ENDPOINTS.AUTH.ME}`, {
+            headers: {
+              Authorization: `Bearer ${newToken}`,
+            },
+          });
           if (retryResponse.ok) {
             return await retryResponse.json();
           }
@@ -140,12 +150,12 @@ export class AuthService {
   }
 
   static getGitHubLoginUrl(): string {
-    return `${API_URL}/api/auth/github`;
+    return `${API_URL}${API_ENDPOINTS.AUTH.GITHUB}`;
   }
 
   static async logout(): Promise<void> {
     try {
-      await fetch(`${API_URL}/api/auth/logout`, { method: "POST" });
+      await fetch(`${API_URL}${API_ENDPOINTS.AUTH.LOGOUT}`, { method: "POST" });
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
