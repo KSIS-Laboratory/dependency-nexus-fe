@@ -6,9 +6,20 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const CHATBOT_API = `${API_BASE_URL}/api/chatbot`;
 
-export interface MessageEntity {
-  name: string;
-  type: string;
+export type ChatbotContextPayload = {
+  message: string;
+  autoSend?: boolean;
+};
+
+const CHATBOT_CONTEXT_EVENT = "chatbot:context" as const;
+
+export function triggerChatbotContext(payload: ChatbotContextPayload) {
+  if (globalThis.window === undefined) {
+    return;
+  }
+
+  const event = new CustomEvent(CHATBOT_CONTEXT_EVENT, { detail: payload });
+  globalThis.window.dispatchEvent(event);
 }
 
 export interface ChatMessage {
@@ -16,15 +27,12 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   created_at: string;
-  entities?: MessageEntity[];
 }
 
 export interface ChatResponse {
   conversation_id: string;
   user_message: string;
   assistant_response: string;
-  entities: MessageEntity[];
-  response_entities: MessageEntity[];
   timestamp: string;
 }
 
@@ -46,66 +54,88 @@ export interface HealthStatus {
   error?: string;
 }
 
+export interface RemediationStep {
+  package: string;
+  vulnerability_id: string;
+  severity: string;
+  summary: string;
+  fixed_versions: string[];
+  current_version: string;
+}
+
+export interface RepositoryAnalysis {
+  repo_id: string;
+  repo_name: string;
+  owner: string;
+  scan_timestamp: string;
+  total_vulnerabilities: number;
+  severity_breakdown: {
+    CRITICAL: number;
+    HIGH: number;
+    MODERATE: number;
+    LOW: number;
+    UNKNOWN: number;
+  };
+  affected_packages: string[];
+  remediation_steps: RemediationStep[];
+}
+
+export interface RemediationGuidance {
+  repo_id: string;
+  total_vulnerabilities: number;
+  priority_order: Array<{
+    id: string;
+    summary: string;
+    severity: string;
+    affected_package: string;
+    current_version: string;
+  }>;
+  remediation_plan: Array<{
+    priority: number;
+    vulnerability_id: string;
+    severity: string;
+    package: string;
+    action: string;
+  }>;
+}
+
 export class ChatbotClient {
   private conversationId: string | null = null;
-  private userId: string;
+  private readonly userId: string;
 
   constructor(userId: string) {
     this.userId = userId;
   }
 
   /**
-   * Create a new conversation
-   */
-  async createConversation(): Promise<string> {
-    try {
-      const response = await fetch(`${CHATBOT_API}/conversations`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ user_id: this.userId }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to create conversation: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      this.conversationId = data.conversation_id;
-      return data.conversation_id;
-    } catch (error) {
-      console.error("Error creating conversation:", error);
-      throw error;
-    }
-  }
-
-  /**
    * Send a message and get a response
    */
   async sendMessage(message: string): Promise<ChatResponse> {
-    if (!this.conversationId) {
-      throw new Error("No active conversation. Call createConversation first.");
-    }
-
     try {
+      const payload: Record<string, unknown> = {
+        message: message,
+        user_id: this.userId,
+      };
+
+      if (this.conversationId) {
+        payload.conversation_id = this.conversationId;
+      }
+
       const response = await fetch(`${CHATBOT_API}/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          conversation_id: this.conversationId,
-          message: message,
-          user_id: this.userId,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
         throw new Error(`Failed to send message: ${response.statusText}`);
       }
 
-      return await response.json();
+      const data: ChatResponse = await response.json();
+      this.conversationId = data.conversation_id ?? this.conversationId;
+      return data;
     } catch (error) {
       console.error("Error sending message:", error);
       throw error;
@@ -196,5 +226,65 @@ export class ChatbotClient {
    */
   getConversationId(): string | null {
     return this.conversationId;
+  }
+
+  /**
+   * Analyze repository vulnerabilities
+   */
+  static async analyzeRepository(
+    repoId: string,
+    repoName: string,
+    owner: string,
+    vulnerabilities: any[],
+    scanTimestamp: string
+  ): Promise<RepositoryAnalysis> {
+    try {
+      const response = await fetch(`${CHATBOT_API}/repositories/analyze`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          repo_id: repoId,
+          repo_name: repoName,
+          owner: owner,
+          vulnerabilities: vulnerabilities,
+          scan_timestamp: scanTimestamp,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to analyze repository: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error analyzing repository:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get remediation guidance for a repository
+   */
+  static async getRemediationGuidance(
+    repoId: string
+  ): Promise<RemediationGuidance> {
+    try {
+      const response = await fetch(
+        `${CHATBOT_API}/repositories/${repoId}/remediation`
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `Failed to get remediation guidance: ${response.statusText}`
+        );
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error getting remediation guidance:", error);
+      throw error;
+    }
   }
 }

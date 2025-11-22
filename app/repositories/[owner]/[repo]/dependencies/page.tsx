@@ -2,31 +2,40 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useDependencyAnalysis } from "@/hooks/useDependencyAnalysis";
-// Removed useVulnerabilityScanAndSave hook - now using direct API calls with smart caching
 import { AuthService, User } from "@/lib/auth";
 import { VulnerabilityAPIService } from "@/lib/vulnerability";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { PageHeader } from "@/components/PageHeader";
-import { DependencyFileCard } from "@/components/DependencyFileCard";
-import { DependencySection } from "@/components/DependencySection";
-import { VulnerabilitySummary } from "@/components/VulnerabilitySummary";
-import { VulnerabilityCard } from "@/components/VulnerabilityCard";
+import {
+Package,
+  ArrowLeft,
+  Shield,
+  History,
+  AlertCircle,
+  Github,
+  Layers
+} from "lucide-react";
+import { DependenciesTab } from "@/components/DependenciesTab";
+import { SecurityTab } from "@/components/SecurityTab";
+import { ChatbotWidget } from "@/components/ChatbotWidget";
 import { ScanHistoryPanel } from "@/components/ScanHistoryPanel";
-import { Package, ArrowLeft, Shield, AlertTriangle, FileCode } from "lucide-react";
 
 const isUnsupportedDependencyFile = (deps: unknown): deps is { raw_content: string } => {
   return typeof deps === "object" && deps !== null && "raw_content" in deps;
 };
+
+type TabType = 'dependencies' | 'security' | 'history';
 
 export default function DependenciesPage() {
   const router = useRouter();
   const params = useParams();
   const owner = params.owner as string;
   const repo = params.repo as string;
-  
+
   const { isAuthenticated, isLoading: authLoading, githubToken, jwtToken } = useAuth();
   const { analysis, isLoading: analysisLoading, error } = useDependencyAnalysis(
     githubToken,
@@ -34,15 +43,17 @@ export default function DependenciesPage() {
     repo
   );
   const [user, setUser] = useState<User | null>(null);
-  const [showVulnerabilities, setShowVulnerabilities] = useState(false);
-  const [showScanHistory, setShowScanHistory] = useState(false);
+
+  // Tab State
+  const [activeTab, setActiveTab] = useState<TabType>('dependencies');
+
+  // Scan & Data State
   const [scanFromCache, setScanFromCache] = useState(false);
   const [localVulnerabilities, setLocalVulnerabilities] = useState<any>(null);
   const [cachedVulnerabilities, setCachedVulnerabilities] = useState<any>(null);
   const [localIsScanning, setLocalIsScanning] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [isLoadingCached, setIsLoadingCached] = useState(false);
-  const [cacheError, setCacheError] = useState<string | null>(null);
+  const [viewingHistoryVersion, setViewingHistoryVersion] = useState<string | null>(null);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -57,8 +68,6 @@ export default function DependenciesPage() {
   useEffect(() => {
     const fetchCachedVulnerabilities = async () => {
       if (!jwtToken) return;
-      setIsLoadingCached(true);
-      setCacheError(null);
       try {
         const cached = await VulnerabilityAPIService.getLatestCachedScan(
           jwtToken,
@@ -70,9 +79,6 @@ export default function DependenciesPage() {
         }
       } catch (error) {
         console.error("Failed to load cached vulnerabilities", error);
-        setCacheError("Failed to load latest scan results");
-      } finally {
-        setIsLoadingCached(false);
       }
     };
 
@@ -87,11 +93,12 @@ export default function DependenciesPage() {
         .flatMap(([filename, deps]) =>
           VulnerabilityAPIService.convertDependenciesToPackageQueries(deps, filename)
         );
-      
+
       if (allPackages.length > 0) {
         setLocalIsScanning(true);
         setLocalError(null);
         setScanFromCache(false);
+        setViewingHistoryVersion(null);
 
         try {
           // Use smart scan that checks cache first
@@ -104,7 +111,10 @@ export default function DependenciesPage() {
           setLocalVulnerabilities(result.data);
           setCachedVulnerabilities(result.data);
           setScanFromCache(result.fromCache);
-          
+
+          // Switch to security tab to show results
+          setActiveTab('security');
+
           if (result.fromCache) {
             console.log("✅ Using cached scan result");
           } else {
@@ -117,6 +127,35 @@ export default function DependenciesPage() {
           setLocalIsScanning(false);
         }
       }
+    }
+  };
+
+  const handleViewVersion = async (versionId: string) => {
+    if (!jwtToken) return;
+    setLocalIsScanning(true);
+    setLocalError(null);
+    try {
+      const detail = await VulnerabilityAPIService.getScanDetail(
+        jwtToken,
+        `${owner}/${repo}`,
+        versionId
+      );
+
+      if (detail?.scan_result) {
+        setLocalVulnerabilities(detail.scan_result);
+        setScanFromCache(true);
+        setViewingHistoryVersion(versionId);
+
+        // Switch to security tab to view details
+        setActiveTab('security');
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    } catch (err) {
+      console.error("Failed to load version", err);
+      setLocalError("Failed to load historical version");
+    } finally {
+      setLocalIsScanning(false);
     }
   };
 
@@ -148,236 +187,192 @@ export default function DependenciesPage() {
   const vulnerabilityData = localVulnerabilities || cachedVulnerabilities;
   const hasVulnerabilityData = Boolean(vulnerabilityData);
   const totalVulnerabilityCount = vulnerabilityData?.total_vulnerabilities ?? 0;
-
-  // Check if repository has no dependency files
   const hasDependencyFiles = Object.keys(analysis?.dependency_files || {}).length > 0;
 
+
+
   return (
-    <div className="min-h-screen bg-base-200">
+    <div className="min-h-screen bg-base-200/50 pb-20">
       <PageHeader user={user} showUser>
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.push("/repositories")}
-            className="btn btn-ghost btn-circle btn-sm"
-            aria-label="Back to repositories"
+          <Link
+            href={`/repositories/${owner}`}
+            className="btn btn-ghost btn-circle btn-sm hover:bg-base-content/10"
+            aria-label="Back to owner repositories"
           >
             <ArrowLeft className="h-5 w-5" />
-          </button>
-          <h1 className="text-xl font-bold">
-            {owner}/{repo}
-          </h1>
+          </Link>
+          <div className="flex items-center gap-2 text-sm breadcrumbs text-base-content/60">
+            <ul>
+              <li><Link href="/repositories">Repositories</Link></li>
+              <li><Link href={`/repositories/${owner}`}>{owner}</Link></li>
+              <li className="font-semibold text-base-content">{repo}</li>
+            </ul>
+          </div>
         </div>
       </PageHeader>
 
-      <main className="container mx-auto px-4 py-6 sm:px-6 lg:px-8 max-w-7xl">
-        {/* Page Title & Actions */}
-        <div className="mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-            <div>
-              <h2 className="text-3xl font-bold flex items-center gap-3 text-base-content mb-2">
-                <Package className="h-8 w-8 text-primary" />
-                Dependency Analysis
-              </h2>
-              <p className="text-base-content/70 text-sm">Analyze and monitor dependency vulnerabilities</p>
+      <main className="container mx-auto px-4 py-8 sm:px-6 lg:px-8 max-w-7xl">
+        {/* Header Section */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
+          <div className="flex items-start gap-4">
+            <div className="p-4 bg-linear-to-br from-primary/10 to-primary/5 rounded-2xl text-primary shadow-sm ring-1 ring-base-300">
+              <Package className="h-8 w-8" />
             </div>
-            
-            {/* Action Buttons */}
-            {hasDependencyFiles && dependencyEntries.length > 0 && jwtToken && (
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={handleVulnerabilityScan}
-                  disabled={localIsScanning}
-                  className="btn btn-primary btn-sm gap-2"
-                >
-                  <Shield className="h-4 w-4" />
-                  {localIsScanning ? "Scanning..." : "Scan vulnerabilities"}
-                </button>
-                <button
-                  onClick={() => setShowScanHistory(!showScanHistory)}
-                  className="btn btn-outline btn-sm gap-2 text-base-content"
-                >
-                  <FileCode className="h-4 w-4" />
-                  {showScanHistory ? "Hide history" : "View history"}
-                </button>
-              </div>
-            )}
+            <div>
+              <h2 className="text-3xl font-bold text-base-content tracking-tight mb-1">
+                {repo}
+              </h2>
+              <p className="text-base-content/70 flex items-center gap-2 font-medium">
+                <Github className="h-4 w-4" />
+                {owner}
+              </p>
+            </div>
           </div>
 
-          {/* Scan History Panel */}
-          {showScanHistory && jwtToken && (
-            <div className="animate-in slide-in-from-top duration-300">
-              <ScanHistoryPanel
-                repositoryId={`${owner}/${repo}`}
-                repositoryName={repo}
-                token={jwtToken}
-              />
+          {/* Global Actions */}
+          {hasDependencyFiles && dependencyEntries.length > 0 && jwtToken && (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleVulnerabilityScan}
+                disabled={localIsScanning}
+                className={`btn gap-2 shadow-md transition-all duration-300 ${localIsScanning
+                  ? "btn-disabled opacity-70"
+                  : "btn-primary hover:scale-105 active:scale-95"
+                  }`}
+              >
+                {localIsScanning ? (
+                  <span className="loading loading-spinner loading-sm"></span>
+                ) : (
+                  <Shield className="h-4 w-4" />
+                )}
+                {localIsScanning ? "Scanning..." : "Scan Vulnerabilities"}
+              </button>
             </div>
           )}
         </div>
 
-        {!hasDependencyFiles ? (
-          /* Empty State */
-          <div className="card bg-base-100 shadow-xl">
-            <div className="card-body items-center text-center py-16">
-              <Package className="h-16 w-16 text-base-content/30 mb-4" />
-              <h3 className="text-xl font-bold text-base-content mb-2">
-                Not found any dependency files
-              </h3>
-              <p className="text-base-content/70">
-                This repository doesn't have any dependency files that can be analyzed.
-              </p>
-            </div>
-          </div>
-        ) : (
+        {hasDependencyFiles ? (
           <>
-            {/* Vulnerability Status Alerts */}
-            {(localIsScanning || hasVulnerabilityData || localError || cacheError || scanFromCache || isLoadingCached) && (
-              <div className="mb-6 space-y-3">
-                {localIsScanning && (
-                  <div className="alert alert-info">
-                    <Shield className="h-5 w-5" />
-                    <span>Scanning vulnerabilities...</span>
-                  </div>
-                )}
-                {isLoadingCached && (
-                  <div className="alert alert-info">
-                    <Shield className="h-5 w-5" />
-                    <span>Loading cached scan results...</span>
-                  </div>
-                )}
-                {scanFromCache && !localIsScanning && hasVulnerabilityData && (
-                  <div className="alert alert-success">
-                    <Shield className="h-5 w-5" />
-                    <span>✅ Using cached scan results (dependencies unchanged)</span>
-                  </div>
-                )}
-                {localError && (
-                  <div className="alert alert-error">
-                    <AlertTriangle className="h-5 w-5" />
-                    <span>{localError}</span>
-                  </div>
-                )}
-                {cacheError && (
-                  <div className="alert alert-warning">
-                    <AlertTriangle className="h-5 w-5" />
-                    <span>{cacheError}</span>
-                  </div>
-                )}
-                {!localIsScanning && hasVulnerabilityData && totalVulnerabilityCount === 0 && (
-                  <div className="alert alert-success">
-                    <Shield className="h-5 w-5" />
-                    <span>✨ No vulnerabilities found in this project</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Vulnerability Summary */}
-            {hasVulnerabilityData && totalVulnerabilityCount > 0 && (
-              <div className="mb-6">
-                <VulnerabilitySummary data={vulnerabilityData} />
-              </div>
-            )}
-
-            {/* Main Content Grid */}
-            <div className="grid gap-6 lg:grid-cols-3">
-              {/* Left Column: Dependency Files (1/3) */}
-              <div className="lg:col-span-1">
-                <div className="card bg-base-100 shadow-xl sticky top-6">
-                  <div className="card-body">
-                    <h3 className="card-title text-lg flex items-center gap-2 text-base-content">
-                      <FileCode className="h-5 w-5 text-primary" />
-                      Dependency Files
-                      <div className="badge badge-primary badge-sm">
-                        {Object.keys(analysis?.dependency_files || {}).length}
-                      </div>
-                    </h3>
-                    <div className="space-y-3 mt-4">
-                      {Object.entries(analysis?.dependency_files || {}).map(([filename, info]) => (
-                        <DependencyFileCard
-                          key={filename}
-                          filename={filename}
-                          info={info}
-                        />
-                      ))}
+            {/* Status Alerts */}
+            <div className="space-y-4 mb-6">
+              {localIsScanning && (
+                <div className="alert alert-info shadow-lg bg-info/10 border-info/20 text-info-content">
+                  <div className="flex items-center gap-3">
+                    <span className="loading loading-spinner loading-md text-info"></span>
+                    <div>
+                      <h3 className="font-bold">Scanning in progress</h3>
+                      <div className="text-xs opacity-80">Analyzing dependencies for security vulnerabilities...</div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* Right Column: Dependencies & Vulnerabilities (2/3) */}
-              <div className="lg:col-span-2 space-y-6">
-                {/* Dependencies Section */}
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-2xl font-bold flex items-center gap-2 text-base-content">
-                      <Package className="h-6 w-6 text-primary" />
-                      Dependencies
-                    </h3>
-                    {hasVulnerabilityData && totalVulnerabilityCount > 0 && (
-                      <button
-                        onClick={() => setShowVulnerabilities(!showVulnerabilities)}
-                        className="btn btn-outline btn-sm gap-2 text-base-content"
-                      >
-                        <AlertTriangle className="h-4 w-4" />
-                        {showVulnerabilities ? "Hide vulnerabilities" : "Show vulnerabilities"}
-                      </button>
-                    )}
-                  </div>
-                  <div className="space-y-4">
-                    {dependencyEntries.map(([filename, deps]: [string, any]) => (
-                      <DependencySection
-                        key={filename}
-                        filename={filename}
-                        dependencies={deps}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Vulnerabilities Detail Section */}
-                {hasVulnerabilityData && showVulnerabilities && totalVulnerabilityCount > 0 && (
-                  <div className="animate-in slide-in-from-bottom duration-300">
-                    <div className="divider"></div>
-                    <h3 className="text-2xl font-bold mb-6 flex items-center gap-3 text-base-content">
-                      <AlertTriangle className="h-6 w-6 text-error" />
-                      Vulnerabilities detail
-                      {scanFromCache && (
-                        <span className="badge badge-success badge-sm gap-1">
-                          <Shield className="h-3 w-3" />
-                          Cached
-                        </span>
-                      )}
-                    </h3>
-                    <div className="space-y-6">
-                      {vulnerabilityData?.results?.map((result: any) => (
-                        result.vulnerability_count > 0 && (
-                          <div key={result.package.name} className="card bg-base-100 shadow-lg text-base-content">
-                            <div className="card-body">
-                              <h4 className="card-title text-lg flex items-center gap-2">
-                                <Package className="h-5 w-5" />
-                                {result.package.name}
-                                <span className="badge badge-error badge-sm">
-                                  {result.vulnerability_count} vulnerabilities
-                                </span>
-                              </h4>
-                              <div className="grid gap-4 mt-4">
-                                {result.vulnerabilities.map((vuln: any) => (
-                                  <VulnerabilityCard key={vuln.id} vulnerability={vuln} />
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      ))}
+              {viewingHistoryVersion && (
+                <div className="alert alert-warning shadow-lg bg-warning/10 border-warning/20 text-warning-content flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <History className="h-5 w-5 text-warning" />
+                    <div>
+                      <h3 className="font-bold">Viewing Historical Version: {viewingHistoryVersion}</h3>
+                      <div className="text-xs opacity-80">You are viewing a past scan result.</div>
                     </div>
                   </div>
+                  <button
+                    className="btn btn-sm btn-ghost hover:bg-warning/20"
+                    onClick={() => {
+                      setViewingHistoryVersion(null);
+                      setLocalVulnerabilities(cachedVulnerabilities);
+                      setActiveTab('security');
+                    }}
+                  >
+                    Exit History View
+                  </button>
+                </div>
+              )}
+
+              {localError && (
+                <div className="alert alert-error shadow-lg">
+                  <AlertCircle className="h-5 w-5" />
+                  <span>{localError}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Tabs Navigation */}
+            <div role="tablist" className="tabs tabs-lifted tabs-lg mb-6 bg-transparent">
+              <button
+                role="tab"
+                className={`tab font-bold transition-all duration-200 ${activeTab === 'dependencies' ? 'tab-active text-primary [--tab-bg:oklch(var(--b1))]' : 'text-base-content/60 hover:text-base-content'}`}
+                onClick={() => setActiveTab('dependencies')}
+              >
+                <Layers className="w-4 h-4 mr-2" />
+                Dependencies
+              </button>
+              <button
+                role="tab"
+                className={`tab font-bold transition-all duration-200 ${activeTab === 'security' ? 'tab-active text-primary [--tab-bg:oklch(var(--b1))]' : 'text-base-content/60 hover:text-base-content'}`}
+                onClick={() => setActiveTab('security')}
+              >
+                <Shield className="w-4 h-4 mr-2" />
+                Security
+                {totalVulnerabilityCount > 0 && (
+                  <span className="badge badge-sm badge-error ml-2">{totalVulnerabilityCount}</span>
                 )}
-              </div>
+              </button>
+              <button
+                role="tab"
+                className={`tab font-bold transition-all duration-200 ${activeTab === 'history' ? 'tab-active text-primary [--tab-bg:oklch(var(--b1))]' : 'text-base-content/60 hover:text-base-content'}`}
+                onClick={() => setActiveTab('history')}
+              >
+                <History className="w-4 h-4 mr-2" />
+                History
+              </button>
+            </div>
+
+            {/* Tab Content */}
+            <div className="bg-base-100 rounded-b-box rounded-tr-box border-base-300 min-h-[500px]">
+              {activeTab === 'dependencies' && <DependenciesTab analysis={analysis} />}
+              {activeTab === 'security' && (
+                <SecurityTab
+                  hasVulnerabilityData={hasVulnerabilityData}
+                  totalVulnerabilityCount={totalVulnerabilityCount}
+                  vulnerabilityData={vulnerabilityData}
+                  scanFromCache={scanFromCache}
+                  localIsScanning={localIsScanning}
+                  onScan={handleVulnerabilityScan}
+                />
+              )}
+              {activeTab === 'history' && (
+                <div className="p-6 animate-in fade-in duration-300">
+                  <div className="max-w-5xl mx-auto">
+                    <ScanHistoryPanel
+                      repositoryId={`${owner}/${repo}`}
+                      repositoryName={repo}
+                      token={jwtToken || ''}
+                      onViewVersion={handleViewVersion}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </>
+        ) : (
+          /* Empty State */
+          <div className="flex flex-col items-center justify-center py-24 text-center bg-base-100/50 backdrop-blur-sm rounded-3xl border border-base-200/50 border-dashed">
+            <div className="bg-base-200 p-6 rounded-full mb-6">
+              <Package className="h-12 w-12 text-base-content/30" />
+            </div>
+            <h3 className="text-xl font-bold text-base-content mb-2">
+              No dependency files found
+            </h3>
+            <p className="text-base-content/60 max-w-md mx-auto">
+              This repository doesn't appear to have any supported dependency files (like package.json, requirements.txt) that we can analyze.
+            </p>
+          </div>
         )}
       </main>
+
+      {user?.id && <ChatbotWidget userId={user.id} />}
     </div>
   );
 }

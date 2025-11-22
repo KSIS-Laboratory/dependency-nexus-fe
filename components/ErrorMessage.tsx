@@ -1,10 +1,11 @@
 interface ErrorMessageProps {
   message: string;
+  details?: string;
   onRetry?: () => void;
   onBack?: () => void;
 }
 
-export function ErrorMessage({ message, onRetry, onBack }: ErrorMessageProps) {
+export function ErrorMessage({ message, details, onRetry, onBack }: Readonly<ErrorMessageProps>) {
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <div className="text-center max-w-md">
@@ -13,6 +14,7 @@ export function ErrorMessage({ message, onRetry, onBack }: ErrorMessageProps) {
           <div>
             <h3 className="font-bold">Error</h3>
             <div className="text-sm">{message}</div>
+            {details && <div className="text-xs mt-2 opacity-70 font-mono bg-base-100/50 p-2 rounded">{details}</div>}
           </div>
         </div>
         <div className="mt-4 flex gap-2 justify-center">

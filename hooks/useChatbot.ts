@@ -19,10 +19,9 @@ export function useChatbot({ userId, onError }: UseChatbotOptions) {
   const clientRef = useRef<ChatbotClient | null>(null);
 
   // Initialize chatbot
-  const initializeChatbot = useCallback(async () => {
+  const initializeChatbot = useCallback(() => {
     try {
       const client = new ChatbotClient(userId);
-      await client.createConversation();
       clientRef.current = client;
       setChatbotReady(true);
       setError(null);
@@ -70,7 +69,6 @@ export function useChatbot({ userId, onError }: UseChatbotOptions) {
           role: "assistant",
           content: response.assistant_response,
           created_at: response.timestamp,
-          entities: response.response_entities,
         };
         setMessages((prev) => [...prev, assistantMsg]);
       } catch (err) {
@@ -91,9 +89,9 @@ export function useChatbot({ userId, onError }: UseChatbotOptions) {
   }, []);
 
   // Reset chatbot
-  const reset = useCallback(async () => {
+  const reset = useCallback(() => {
     clearMessages();
-    await initializeChatbot();
+    initializeChatbot();
   }, [clearMessages, initializeChatbot]);
 
   return {

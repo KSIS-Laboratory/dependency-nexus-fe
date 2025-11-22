@@ -1,8 +1,8 @@
 import { LucideIcon } from "lucide-react";
 
 interface EmptyStateProps {
-  icon: LucideIcon;
-  message: string;
+  readonly icon: LucideIcon;
+  readonly message: string;
 }
 
 export function EmptyState({ icon: Icon, message }: EmptyStateProps) {

@@ -9,9 +9,9 @@ interface User {
 }
 
 interface PageHeaderProps {
-  children?: ReactNode;
-  user?: User | null;
-  showUser?: boolean;
+  readonly children?: ReactNode;
+  readonly user?: User | null;
+  readonly showUser?: boolean;
 }
 
 export function PageHeader({ children, user, showUser = false }: PageHeaderProps) {

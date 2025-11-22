@@ -8,52 +8,46 @@ interface DashboardStatsGridProps {
 
 export function DashboardStatsGrid({ stats }: Readonly<DashboardStatsGridProps>) {
   return (
-    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div className="card bg-base-100 shadow-lg border border-base-300">
-        <div className="card-body">
-          <p className="text-sm uppercase tracking-wide text-base-content/60">Repositories</p>
-          <div className="flex items-end justify-between">
-            <span className="text-3xl font-bold text-base-content sm:text-4xl">{stats.repoCount}</span>
-            <ShieldCheck className="h-8 w-8 text-primary" aria-hidden />
-          </div>
-          <p className="text-sm text-base-content/70">Connected to your GitHub account</p>
+    <div className="stats stats-vertical lg:stats-horizontal shadow-xl bg-base-100 w-full border border-base-200">
+      <div className="stat">
+        <div className="stat-figure text-primary">
+          <ShieldCheck className="inline-block w-8 h-8 stroke-current" />
         </div>
+        <div className="stat-title">Total Repositories</div>
+        <div className="stat-value text-primary">{stats.repoCount}</div>
+        <div className="stat-desc">Connected to GitHub</div>
       </div>
 
-      <div className="card bg-base-100 shadow-lg border border-base-300">
-        <div className="card-body">
-          <p className="text-sm uppercase tracking-wide text-base-content/60">Monitored repos</p>
-          <div className="flex items-end justify-between">
-            <span className="text-3xl font-bold text-base-content sm:text-4xl">{stats.scannedCount}</span>
-            <Activity className="h-8 w-8 text-secondary" aria-hidden />
-          </div>
-          <p className="text-sm text-base-content/70">Have at least one vulnerability scan</p>
+      <div className="stat">
+        <div className="stat-figure text-secondary">
+          <Activity className="inline-block w-8 h-8 stroke-current" />
         </div>
+        <div className="stat-title">Monitored</div>
+        <div className="stat-value text-secondary">{stats.scannedCount}</div>
+        <div className="stat-desc">Active scans</div>
       </div>
 
-      <div className="card bg-base-100 shadow-lg border border-base-300">
-        <div className="card-body">
-          <p className="text-sm uppercase tracking-wide text-base-content/60">Open vulnerabilities</p>
-          <div className="flex items-end justify-between">
-            <span className="text-3xl font-bold text-error sm:text-4xl">{stats.totalVulnerabilities}</span>
-            <ShieldAlert className="h-8 w-8 text-error" aria-hidden />
-          </div>
-          <p className="text-sm text-base-content/70">Across the latest scan for each repo</p>
+      <div className="stat">
+        <div className="stat-figure text-error">
+          <ShieldAlert className="inline-block w-8 h-8 stroke-current" />
         </div>
+        <div className="stat-title">Vulnerabilities</div>
+        <div className="stat-value text-error">{stats.totalVulnerabilities}</div>
+        <div className="stat-desc">Across latest scans</div>
       </div>
 
-      <div className="card bg-base-100 shadow-lg border border-base-300">
-        <div className="card-body">
-          <p className="text-sm uppercase tracking-wide text-base-content/60">Last scan</p>
-          <div className="flex items-end justify-between">
-            <span className="text-base font-semibold text-base-content sm:text-lg">
-              {stats.lastScan ? formatRelativeTime(stats.lastScan) : "No scans"}
-            </span>
-            <Clock className="h-8 w-8 text-info" aria-hidden />
-          </div>
-          <p className="text-sm text-base-content/70">{formatDateTime(stats.lastScan)}</p>
+      <div className="stat">
+        <div className="stat-figure text-info">
+          <Clock className="inline-block w-8 h-8 stroke-current" />
+        </div>
+        <div className="stat-title">Last Scan</div>
+        <div className="stat-value text-lg">
+          {stats.lastScan ? formatRelativeTime(stats.lastScan) : "N/A"}
+        </div>
+        <div className="stat-desc">
+          {stats.lastScan ? formatDateTime(stats.lastScan) : "No scans yet"}
         </div>
       </div>
-    </section>
+    </div>
   );
 }

@@ -1,17 +1,21 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Send, X, MessageCircle, Loader, Copy, Check } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Send, X, MessageCircle, Copy, Check, Trash2 } from "lucide-react";
 import { useChatbot } from "@/hooks/useChatbot";
 
 interface ChatbotWidgetProps {
-  userId: string;
+  readonly userId: string;
 }
 
-export function ChatbotWidget({ userId }: ChatbotWidgetProps) {
+export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
   const [isOpen, setIsOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const handleChatbotError = useCallback((err: string) => {
+    console.error("Chatbot error:", err);
+  }, []);
   
   const {
     messages,
@@ -21,9 +25,10 @@ export function ChatbotWidget({ userId }: ChatbotWidgetProps) {
     error,
     chatbotReady,
     sendMessage,
+    clearMessages,
   } = useChatbot({
     userId,
-    onError: (err) => console.error("Chatbot error:", err),
+    onError: handleChatbotError,
   });
 
   // Auto-scroll to bottom
@@ -31,14 +36,80 @@ export function ChatbotWidget({ userId }: ChatbotWidgetProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    const target = globalThis.window ?? null;
+    if (!target) {
+      return;
+    }
+
+    const handleContextEvent = (event: Event) => {
+      const customEvent = event as CustomEvent<{ message?: string; autoSend?: boolean }>;
+      const contextMessage = customEvent.detail?.message?.trim();
+
+      if (!contextMessage) {
+        return;
+      }
+
+      setIsOpen(true);
+
+      if (customEvent.detail?.autoSend ?? true) {
+        void sendMessage(contextMessage);
+      } else {
+        setInput(contextMessage);
+      }
+    };
+
+    target.addEventListener("chatbot:context", handleContextEvent as EventListener);
+    return () => {
+      target.removeEventListener("chatbot:context", handleContextEvent as EventListener);
+    };
+  }, [sendMessage, setInput]);
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     await sendMessage(input);
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setIsOpen(false);
-  };
+  }, []);
+
+  const handleClearHistory = useCallback(() => {
+    clearMessages();
+    setInput("");
+    setCopiedId(null);
+  }, [clearMessages]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        handleClose();
+      }
+    };
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!modalRef.current) {
+        return;
+      }
+
+      if (!modalRef.current.contains(event.target as Node)) {
+        handleClose();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("mousedown", handlePointerDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [handleClose, isOpen]);
 
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -59,37 +130,42 @@ export function ChatbotWidget({ userId }: ChatbotWidgetProps) {
 
       {/* Modal Overlay */}
       {isOpen && (
-        <div
-          className="modal modal-open"
-          onClick={handleClose}
-        >
-          <div className="modal-backdrop bg-black/50 backdrop-blur-sm" />
-        </div>
-      )}
-
-      {/* Chat Modal */}
-      {isOpen && (
-        <div className="modal modal-open" onClick={(e) => e.stopPropagation()}>
-          <div className="modal-box h-[600px] max-w-md p-0 bg-base-100 flex flex-col rounded-2xl">
+        <dialog className="modal" open>
+          <div
+            ref={modalRef}
+            aria-modal="true"
+            tabIndex={-1}
+            className="modal-box h-230 max-w-2xl w-full p-0 bg-base-100 flex flex-col rounded-3xl shadow-2xl"
+          >
             {/* Header */}
-            <div className="navbar bg-linear-to-r from-primary to-secondary text-primary-content ">
-              <div className="flex-1 gap-3">
-                <div>
-                  <h2 className="font-bold text-lg">AI Assistant</h2>
-                  <p className="text-xs opacity-80">Powered by Llama 3.1</p>
-                </div>
+            <div className="flex items-center justify-between border-b border-base-200 px-6 py-4 bg-base-100 rounded-t-3xl">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-base-content/60">AI Assistant</p>
+                <h2 className="text-lg font-semibold text-primary">Dependency & Security Advisor</h2>
+                <p className="text-xs text-base-content/60">Powered by Llama 3.1</p>
               </div>
-              <button
-                onClick={handleClose}
-                className="btn btn-ghost btn-sm btn-circle"
-                aria-label="Close"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={handleClearHistory}
+                  className="btn btn-outline btn-circle btn-error"
+                  disabled={messages.length === 0}
+                  aria-label="Clear"
+                >
+                  <Trash2 className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={handleClose}
+                  className="btn btn-outline btn-circle btn-error"
+                  aria-label="Close"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-base-200/30">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-base-200/40">
               {messages.length === 0 && !error && (
                 <div className="hero h-full">
                   <div className="hero-content text-center">
@@ -130,58 +206,47 @@ export function ChatbotWidget({ userId }: ChatbotWidgetProps) {
                 </div>
               )}
 
-              {messages.map((message) => (
-                <div key={message.id} className={`chat ${message.role === "user" ? "chat-end" : "chat-start"}`}>
-                  {message.role === "assistant" && (
-                    <div className="chat-image avatar">
-                      <div className="w-10 rounded-full bg-linear-to-r from-primary to-secondary">
-                        <div className="flex h-full items-center justify-center">
-                          <MessageCircle className="h-5 w-5 text-primary-content" />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div className={`chat-bubble ${
-                    message.role === "user" 
-                      ? "chat-bubble-primary" 
-                      : "chat-bubble-secondary"
-                  }`}>
-                    <p className="whitespace-pre-wrap">{message.content}</p>
-                    {message.entities && message.entities.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {message.entities.map((entity, idx) => (
-                          <span key={idx} className="badge badge-sm badge-outline">
-                            {entity.name} <span className="opacity-60">({entity.type})</span>
-                          </span>
-                        ))}
+              {messages.map((message) => {
+                const isUser = message.role === "user";
+                return (
+                  <div
+                    key={message.id}
+                    className={`flex w-full ${isUser ? "justify-end" : "justify-start"}`}
+                  >
+                    {!isUser && (
+                      <div className="mr-3 mt-2 flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <MessageCircle className="h-4 w-4" />
                       </div>
                     )}
-                  </div>
-                  <div className="chat-footer opacity-50">
-                    <button
-                      onClick={() => copyToClipboard(message.content, message.id)}
-                      className="btn btn-ghost btn-xs"
-                      title="Copy"
+                    <div className={`group relative max-w-3xl w-full rounded-2xl border ${
+                      isUser
+                        ? "bg-primary/30 text-primary-content border-primary/30"
+                        : "bg-base-100 border-base-300"
+                    } p-4 shadow-sm transition hover:shadow-md`}
                     >
-                      {copiedId === message.id ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              {loading && (
-                <div className="chat chat-start">
-                  <div className="chat-image avatar">
-                    <div className="w-10 rounded-full bg-linear-to-r from-primary to-secondary">
-                      <div className="flex h-full items-center justify-center">
-                        <MessageCircle className="h-5 w-5 text-primary-content" />
-                      </div>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-words text-base-content">
+                        {message.content}
+                      </p>
+                      <button
+                        onClick={() => copyToClipboard(message.content, message.id)}
+                        className="absolute -right-2 -top-2 hidden bg-base-100/90 p-1 text-base-content/70 shadow group-hover:flex btn btn-circle btn-sm btn-ghost"
+                        title="Copy message"
+                      >
+                        {copiedId === message.id ? (
+                          <Check className="h-3 w-3" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                      </button>
                     </div>
                   </div>
-                  <div className="chat-bubble chat-bubble-secondary flex items-center gap-2">
-                    <span className="loading loading-dots loading-sm"></span>
-                    <span>กำลังคิด...</span>
-                  </div>
+                );
+              })}
+
+              {loading && (
+                <div className="flex items-center gap-2 text-sm text-base-content/70">
+                  <span className="loading loading-dots loading-sm" />
+                  <span>กำลังคิด...</span>
                 </div>
               )}
 
@@ -189,33 +254,39 @@ export function ChatbotWidget({ userId }: ChatbotWidgetProps) {
             </div>
 
             {/* Input */}
-            <form onSubmit={handleSendMessage} className="p-5 border-t">
-              <div className="join w-full">
-                <input
-                  type="text"
+            <form onSubmit={handleSendMessage} className="border-t border-base-200 p-4">
+              <div className="flex flex-col gap-3">
+                <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="ถามเกี่ยวกับ dependencies..."
+                  placeholder="ถามเกี่ยวกับ dependencies, vulnerabilities หรือ security guidance..."
                   disabled={!chatbotReady || loading}
-                  className="input input-bordered join-item flex-1 text-base-content"
+                  className="textarea textarea-bordered min-h-20 w-full resize-none text-base-content/90"
                 />
-                <button
-                  type="submit"
-                  disabled={!chatbotReady || loading || !input.trim()}
-                  className="btn btn-primary join-item"
-                >
-                  <Send className="h-5 w-5" />
-                </button>
-              </div>
-              {!chatbotReady && (
-                <div className="flex items-center justify-center gap-2 mt-2">
-                  <span className="loading loading-spinner loading-xs"></span>
-                  <p className="text-xs opacity-60">กำลังเตรียมตัว...</p>
+                <div className="flex items-center justify-between text-xs text-base-content/60">
+                  <span>{chatbotReady ? "พร้อมตอบทุกคำถาม" : "กำลังเตรียมตัว..."}</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setInput("")}
+                      disabled={!input}
+                    >
+                      ล้างข้อความ
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!chatbotReady || loading || !input.trim()}
+                      className="btn btn-primary"
+                    >
+                      <Send className="h-5 w-5" />
+                    </button>
+                  </div>
                 </div>
-              )}
+              </div>
             </form>
           </div>
-        </div>
+        </dialog>
       )}
     </>
   );

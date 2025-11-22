@@ -1,12 +1,10 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { ChatbotWidget } from "@/components/ChatbotWidget";
 import { AuthService } from "@/lib/auth";
-import { useEffect, useState } from "react";
-
 interface DashboardLayoutProps {
-  children: ReactNode;
+  readonly children: ReactNode;
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {

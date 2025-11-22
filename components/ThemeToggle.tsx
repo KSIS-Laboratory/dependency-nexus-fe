@@ -11,19 +11,19 @@ export function ThemeToggle() {
     setMounted(true);
     // Get theme from localStorage or system preference
     const savedTheme = localStorage.getItem("theme");
-    const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+    const systemTheme = globalThis.matchMedia("(prefers-color-scheme: dark)").matches
       ? "dark"
       : "light";
     const initialTheme = (savedTheme as "light" | "dark") || systemTheme;
     setTheme(initialTheme);
-    document.documentElement.setAttribute("data-theme", initialTheme);
+    document.documentElement.dataset.theme = initialTheme;
   }, []);
 
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
     localStorage.setItem("theme", newTheme);
-    document.documentElement.setAttribute("data-theme", newTheme);
+    document.documentElement.dataset.theme = newTheme;
   };
 
   // Prevent hydration mismatch

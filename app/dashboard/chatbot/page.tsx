@@ -10,7 +10,6 @@ export default function ChatbotPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [chatbotReady, setChatbotReady] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const clientRef = useRef<ChatbotClient | null>(null);
@@ -21,9 +20,7 @@ export default function ChatbotPage() {
       try {
         const user = await AuthService.getCurrentUser();
         if (user?.id) {
-          setUserId(user.id);
           const client = new ChatbotClient(user.id);
-          await client.createConversation();
           clientRef.current = client;
           setChatbotReady(true);
           setError(null);
@@ -74,7 +71,6 @@ export default function ChatbotPage() {
         role: "assistant",
         content: response.assistant_response,
         created_at: response.timestamp,
-        entities: response.response_entities,
       };
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (err) {
@@ -150,19 +146,6 @@ export default function ChatbotPage() {
                 <p className="whitespace-pre-wrap text-sm leading-relaxed">
                   {message.content}
                 </p>
-                {message.entities && message.entities.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {message.entities.map((entity, idx) => (
-                      <span
-                        key={idx}
-                        className="inline-block rounded-full bg-base-300 px-3 py-1 text-xs font-medium opacity-75"
-                      >
-                        {entity.name}
-                        <span className="ml-1 opacity-60">({entity.type})</span>
-                      </span>
-                    ))}
-                  </div>
-                )}
                 <button
                   onClick={() => copyToClipboard(message.content, message.id)}
                   className="absolute -right-10 top-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-base-300 rounded"

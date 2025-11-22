@@ -6,15 +6,17 @@ import { useScanHistory } from "@/hooks/useScanHistory";
 import type { DependencyScanVersion, DependencyChange } from "@/lib/scan-history";
 
 interface ScanHistoryPanelProps {
-  repositoryId: string;
-  repositoryName: string;
-  token: string;
+  readonly repositoryId: string;
+  readonly repositoryName: string;
+  readonly token: string;
+  readonly onViewVersion?: (versionId: string) => void;
 }
 
 export function ScanHistoryPanel({
   repositoryId,
   repositoryName,
   token,
+  onViewVersion,
 }: ScanHistoryPanelProps) {
   const {
     loading,
@@ -62,7 +64,7 @@ export function ScanHistoryPanel({
         <div className="card-body">
           <div className="flex items-center justify-center gap-2">
             <span className="loading loading-spinner loading-md"></span>
-            <p>กำลังโหลดประวัติการสแกน...</p>
+            <p>Loading scan history...</p>
           </div>
         </div>
       </div>
@@ -86,7 +88,7 @@ export function ScanHistoryPanel({
           <div className="card-body">
             <h3 className="card-title text-primary">
               <Package className="h-5 w-5" />
-              สแกนล่าสุด
+              Latest Scan
             </h3>
             <div className="stats stats-vertical lg:stats-horizontal shadow">
               <div className="stat">
@@ -94,7 +96,7 @@ export function ScanHistoryPanel({
                 <div className="stat-value text-2xl">{latestScan.version_id}</div>
                 <div className="stat-desc">
                   <Clock className="inline h-3 w-3 mr-1" />
-                  {new Date(latestScan.scan_timestamp).toLocaleString("th-TH")}
+                  {new Date(latestScan.scan_timestamp).toLocaleString()}
                 </div>
               </div>
               <div className="stat">
@@ -127,16 +129,17 @@ export function ScanHistoryPanel({
       {versionList && versionList.versions.length > 0 && (
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
-            <h3 className="card-title">ประวัติการสแกน</h3>
+            <h3 className="card-title">Scan History</h3>
             <div className="overflow-x-auto">
               <table className="table table-zebra">
                 <thead>
                   <tr>
                     <th>Version</th>
-                    <th>วันที่</th>
-                    <th>จำนวน Dependencies</th>
+                    <th>Date</th>
+                    <th>Dependencies</th>
+                    <th>Vulnerabilities</th>
                     <th>Commit</th>
-                    <th>เปรียบเทียบ</th>
+                    <th>Compare</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -146,10 +149,39 @@ export function ScanHistoryPanel({
                         <span className="badge badge-primary">{version.version_id}</span>
                       </td>
                       <td className="text-sm">
-                        {new Date(version.scan_timestamp).toLocaleString("th-TH")}
+                        {new Date(version.scan_timestamp).toLocaleString()}
                       </td>
                       <td>
                         <span className="badge badge-ghost">{version.total_count}</span>
+                      </td>
+                      <td>
+                        {version.vulnerability_summary ? (
+                          <div className="flex gap-1">
+                            {version.vulnerability_summary.total > 0 ? (
+                              <>
+                                {version.vulnerability_summary.critical > 0 && (
+                                  <div className="badge badge-error badge-sm" title="Critical">
+                                    {version.vulnerability_summary.critical}
+                                  </div>
+                                )}
+                                {version.vulnerability_summary.high > 0 && (
+                                  <div className="badge badge-warning badge-sm" title="High">
+                                    {version.vulnerability_summary.high}
+                                  </div>
+                                )}
+                                {(version.vulnerability_summary.critical === 0 && version.vulnerability_summary.high === 0) && (
+                                  <div className="badge badge-info badge-sm" title="Total">
+                                    {version.vulnerability_summary.total}
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <span className="badge badge-success badge-sm">Safe</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-base-content/30">-</span>
+                        )}
                       </td>
                       <td>
                         {version.commit_hash ? (
@@ -160,6 +192,13 @@ export function ScanHistoryPanel({
                       </td>
                       <td>
                         <div className="join">
+                          <button
+                            className="btn btn-xs join-item btn-ghost"
+                            onClick={() => onViewVersion?.(version.version_id)}
+                            title="View Details"
+                          >
+                            View
+                          </button>
                           <button
                             className="btn btn-xs join-item"
                             onClick={() =>
@@ -208,7 +247,7 @@ export function ScanHistoryPanel({
                       {loading ? (
                         <span className="loading loading-spinner loading-xs"></span>
                       ) : (
-                        "เปรียบเทียบ"
+                        "Compare"
                       )}
                     </button>
                   </div>
@@ -223,38 +262,38 @@ export function ScanHistoryPanel({
       {comparison && (
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
-            <h3 className="card-title">ผลการเปรียบเทียบ</h3>
-            
+            <h3 className="card-title">Comparison Results</h3>
+
             <div className="stats stats-vertical lg:stats-horizontal shadow">
               <div className="stat">
                 <div className="stat-figure text-success">
                   <TrendingUp className="h-8 w-8" />
                 </div>
-                <div className="stat-title">เพิ่ม</div>
+                <div className="stat-title">Added</div>
                 <div className="stat-value text-success">{comparison.added_count}</div>
               </div>
               <div className="stat">
                 <div className="stat-figure text-error">
                   <TrendingDown className="h-8 w-8" />
                 </div>
-                <div className="stat-title">ลบ</div>
+                <div className="stat-title">Removed</div>
                 <div className="stat-value text-error">{comparison.removed_count}</div>
               </div>
               <div className="stat">
                 <div className="stat-figure text-warning">
                   <AlertCircle className="h-8 w-8" />
                 </div>
-                <div className="stat-title">อัปเดต</div>
+                <div className="stat-title">Updated</div>
                 <div className="stat-value text-warning">{comparison.updated_count}</div>
               </div>
             </div>
 
             {comparison.changes.length > 0 && (
               <div className="mt-4">
-                <h4 className="font-bold mb-2">รายละเอียดการเปลี่ยนแปลง</h4>
+                <h4 className="font-bold mb-2">Change Details</h4>
                 <div className="space-y-2">
-                  {comparison.changes.map((change, idx) => (
-                    <div key={idx} className="flex items-center gap-3 p-3 bg-base-200 rounded-lg">
+                  {comparison.changes.map((change) => (
+                    <div key={`${change.dependency_name}-${change.package_manager}-${change.change_type}`} className="flex items-center gap-3 p-3 bg-base-200 rounded-lg">
                       {getChangeIcon(change.change_type)}
                       <div className="flex-1">
                         <div className="font-semibold">{change.dependency_name}</div>
@@ -285,14 +324,14 @@ export function ScanHistoryPanel({
       )}
 
       {/* Empty State */}
-      {versionList && versionList.versions.length === 0 && (
+      {versionList?.versions.length === 0 && (
         <div className="hero bg-base-200 rounded-lg py-12">
           <div className="hero-content text-center">
             <div className="max-w-md">
               <Package className="h-16 w-16 mx-auto text-base-content/30 mb-4" />
-              <h3 className="text-xl font-bold">ยังไม่มีประวัติการสแกน</h3>
+              <h3 className="text-xl font-bold">No scan history found</h3>
               <p className="py-4 text-base-content/70">
-                เริ่มสแกน dependencies เพื่อติดตามการเปลี่ยนแปลง
+                Start scanning dependencies to track changes
               </p>
             </div>
           </div>

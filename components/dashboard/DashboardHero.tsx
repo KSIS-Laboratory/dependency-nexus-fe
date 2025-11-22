@@ -1,4 +1,4 @@
-import { RefreshCcw } from "lucide-react";
+import { RefreshCcw, LayoutDashboard } from "lucide-react";
 
 interface DashboardHeroProps {
   userName?: string;
@@ -8,20 +8,33 @@ interface DashboardHeroProps {
 
 export function DashboardHero({ userName = "team", onRefresh, onViewRepositories }: Readonly<DashboardHeroProps>) {
   return (
-    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-      <div>
-        <p className="text-base-content/60 text-sm sm:text-base">Welcome back, {userName}</p>
-        <h2 className="text-2xl font-bold text-base-content sm:text-3xl">
-          Monitor the health of your repositories at a glance
-        </h2>
-      </div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:self-end md:self-auto">
-        <button className="btn btn-outline btn-secondary gap-2" onClick={onRefresh}>
-          <RefreshCcw className="h-4 w-4" /> Refresh data
-        </button>
-        <button className="btn btn-primary" onClick={onViewRepositories}>
-          View repositories
-        </button>
+    <div className="hero bg-base-100 rounded-box shadow-sm border border-base-200">
+      <div className="hero-content flex-col lg:flex-row-reverse w-full justify-between p-8">
+        <div className="flex gap-2">
+          <button
+            className="btn btn-ghost btn-sm gap-2"
+            onClick={onRefresh}
+            aria-label="Refresh dashboard data"
+          >
+            <RefreshCcw className="h-4 w-4" />
+            Refresh
+          </button>
+          <button
+            className="btn btn-primary btn-sm gap-2"
+            onClick={onViewRepositories}
+          >
+            <LayoutDashboard className="h-4 w-4" />
+            View Repositories
+          </button>
+        </div>
+        <div>
+          <h1 className="text-3xl font-bold">
+            Welcome back, <span className="text-primary">{userName}</span>!
+          </h1>
+          <p className="py-4 text-base-content/70 max-w-xl">
+            Here's what's happening with your projects today. Check your vulnerability scans and repository health at a glance.
+          </p>
+        </div>
       </div>
     </div>
   );

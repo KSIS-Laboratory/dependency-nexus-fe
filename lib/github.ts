@@ -1,4 +1,5 @@
 import { API_URL, API_ENDPOINTS } from "./constants";
+import { AuthService } from "./auth";
 
 export interface Repository {
   id: number;
@@ -12,6 +13,7 @@ export interface Repository {
   stargazers_count: number;
   updated_at: string;
   default_branch: string;
+  has_history?: boolean;
 }
 
 export interface DependencyFile {
@@ -28,6 +30,13 @@ export interface DependencyAnalysis {
 }
 
 export class GitHubAPIService {
+  private static handleUnauthorized(response: Response): void {
+    if (response.status === 401) {
+      AuthService.removeToken();
+      throw new Error("Session expired. Please sign in again.");
+    }
+  }
+
   private static getHeaders(githubToken: string) {
     return {
       "Authorization": `Bearer ${githubToken}`,
@@ -39,6 +48,8 @@ export class GitHubAPIService {
     const response = await fetch(`${API_URL}${API_ENDPOINTS.GITHUB.REPOSITORIES}`, {
       headers: this.getHeaders(githubToken),
     });
+
+    this.handleUnauthorized(response);
 
     if (!response.ok) {
       throw new Error("Failed to fetch repositories");
@@ -60,6 +71,8 @@ export class GitHubAPIService {
       }
     );
 
+    this.handleUnauthorized(response);
+
     if (!response.ok) {
       throw new Error("Failed to analyze dependencies");
     }
@@ -78,6 +91,8 @@ export class GitHubAPIService {
         headers: this.getHeaders(githubToken),
       }
     );
+
+    this.handleUnauthorized(response);
 
     if (!response.ok) {
       throw new Error("Failed to fetch dependency files");

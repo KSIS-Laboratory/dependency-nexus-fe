@@ -210,7 +210,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-base-200">
       <PageHeader user={user} showUser>
         <h1 className="text-xl font-bold text-base-content">
-          Security Overview
+          Dependency Nexus
         </h1>
         <button
           onClick={() => logout()}
@@ -221,7 +221,7 @@ export default function Dashboard() {
         </button>
       </PageHeader>
 
-      <main className="container mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
+      <main className="container mx-auto max-w-7xl p-4 sm:p-6 lg:p-8 space-y-8">
         <DashboardHero
           userName={user?.username ?? "team"}
           onRefresh={handleRefreshInsights}
@@ -229,7 +229,7 @@ export default function Dashboard() {
         />
 
         {insightsError && (
-          <div className="alert alert-warning">
+          <div className="alert alert-warning shadow-lg">
             <ShieldAlert className="h-5 w-5" />
             <span>{insightsError}</span>
           </div>
@@ -237,9 +237,13 @@ export default function Dashboard() {
 
         <DashboardStatsGrid stats={dashboardStats} />
 
-        <section className="grid gap-6 lg:grid-cols-2">
-          <RecentActivityCard activity={recentActivity} />
-          <RiskDistributionCard buckets={riskBuckets} />
+        <section className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <RecentActivityCard activity={recentActivity} />
+          </div>
+          <div className="lg:col-span-1">
+            <RiskDistributionCard buckets={riskBuckets} />
+          </div>
         </section>
 
         <ProjectHealthSection

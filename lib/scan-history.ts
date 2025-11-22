@@ -24,6 +24,13 @@ export interface DependencyScanVersion {
   dependencies: DependencyItem[];
   total_count: number;
   package_managers: string[];
+  vulnerability_summary?: {
+    total: number;
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
 }
 
 export interface DependencyChange {
@@ -61,6 +68,13 @@ export interface ScanVersionListResponse {
     scan_timestamp: string;
     total_count: number;
     commit_hash?: string;
+    vulnerability_summary?: {
+      total: number;
+      critical: number;
+      high: number;
+      medium: number;
+      low: number;
+    };
   }>;
 }
 
