@@ -1,6 +1,9 @@
 import { Repository } from "@/lib/github";
 import { FolderGit2, Star, Lock, Globe, MessageCircle, Github, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { useState, useEffect } from "react";
+import { API_URL, API_ENDPOINTS } from "@/lib/constants";
+import { AuthService } from "@/lib/auth";
 
 interface RepositoryCardProps {
   readonly repository: Repository;
@@ -9,6 +12,44 @@ interface RepositoryCardProps {
 }
 
 export function RepositoryCard({ repository, onClick, onAskAI }: RepositoryCardProps) {
+  const [hasHistory, setHasHistory] = useState(repository.has_history);
+
+  useEffect(() => {
+    const checkHistory = async () => {
+      // If has_history is already true, no need to check
+      if (repository.has_history) {
+        setHasHistory(true);
+        return;
+      }
+
+      try {
+        const token = AuthService.getToken();
+        if (!token) return;
+
+        const historyPath = API_ENDPOINTS.VULNERABILITIES.HISTORY(`${repository.owner}/${repository.name}`);
+        const response = await fetch(
+          `${API_URL}${historyPath}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.total_scans > 0) {
+            setHasHistory(true);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to check history", error);
+      }
+    };
+
+    checkHistory();
+  }, [repository.owner, repository.name, repository.has_history]);
+
   return (
     <div
       className="group relative bg-base-100/50 backdrop-blur-md border border-base-00 rounded-2xl overflow-hidden hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500 hover:-translate-y-1"
@@ -74,7 +115,7 @@ export function RepositoryCard({ repository, onClick, onAskAI }: RepositoryCardP
             </div>
           </div>
 
-          {repository.has_history && onAskAI && (
+          {hasHistory && onAskAI && (
             <button
               onClick={(e) => {
                 e.stopPropagation();

@@ -20,7 +20,7 @@ export function ProjectHealthSection({
           <h3 className="text-xl font-bold">Project Health</h3>
           <p className="text-base-content/70 text-sm">Quick access to your most active repositories</p>
         </div>
-        <button className="btn btn-ghost btn-sm text-primary" onClick={onViewAll}>
+        <button className="btn btn-primary btn-outline btn-sm" onClick={onViewAll}>
           View all repositories
           <ArrowRight className="h-4 w-4" />
         </button>
@@ -69,7 +69,7 @@ export function ProjectHealthSection({
                 <div className="card-actions justify-end mt-2">
                   <button
                     onClick={() => onViewRepository(repo.full_name)}
-                    className="btn btn-xs btn-outline w-full"
+                    className="btn btn-xs btn-outline w-full btn-primary"
                   >
                     View Details
                   </button>

@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Clock, GitBranch, Package, TrendingUp, TrendingDown, AlertCircle } from "lucide-react";
+import { Clock, GitBranch, Package, TrendingUp, TrendingDown, AlertCircle, History } from "lucide-react";
 import { useScanHistory } from "@/hooks/useScanHistory";
 import type { DependencyScanVersion, DependencyChange } from "@/lib/scan-history";
+import { EmptyState } from "@/components/EmptyState";
 
 interface ScanHistoryPanelProps {
   readonly repositoryId: string;
   readonly repositoryName: string;
   readonly token: string;
   readonly onViewVersion?: (versionId: string) => void;
+  readonly onScan?: () => void;
+  readonly isScanning?: boolean;
 }
 
 export function ScanHistoryPanel({
@@ -17,6 +20,8 @@ export function ScanHistoryPanel({
   repositoryName,
   token,
   onViewVersion,
+  onScan,
+  isScanning = false,
 }: ScanHistoryPanelProps) {
   const {
     loading,
@@ -325,17 +330,13 @@ export function ScanHistoryPanel({
 
       {/* Empty State */}
       {versionList?.versions.length === 0 && (
-        <div className="hero bg-base-200 rounded-lg py-12">
-          <div className="hero-content text-center">
-            <div className="max-w-md">
-              <Package className="h-16 w-16 mx-auto text-base-content/30 mb-4" />
-              <h3 className="text-xl font-bold">No scan history found</h3>
-              <p className="py-4 text-base-content/70">
-                Start scanning dependencies to track changes
-              </p>
-            </div>
-          </div>
-        </div>
+        <EmptyState
+          title="No scan history found"
+          description="Start scanning dependencies to track changes and build a history of your security posture."
+          icon={History}
+          onScan={onScan}
+          isScanning={isScanning}
+        />
       )}
     </div>
   );

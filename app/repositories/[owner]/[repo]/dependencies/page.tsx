@@ -11,7 +11,7 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { PageHeader } from "@/components/PageHeader";
 import {
-Package,
+  Package,
   ArrowLeft,
   Shield,
   History,
@@ -331,7 +331,13 @@ export default function DependenciesPage() {
 
             {/* Tab Content */}
             <div className="bg-base-100 rounded-b-box rounded-tr-box border-base-300 min-h-[500px]">
-              {activeTab === 'dependencies' && <DependenciesTab analysis={analysis} />}
+              {activeTab === 'dependencies' && (
+                <DependenciesTab
+                  analysis={analysis}
+                  onScan={handleVulnerabilityScan}
+                  isScanning={localIsScanning}
+                />
+              )}
               {activeTab === 'security' && (
                 <SecurityTab
                   hasVulnerabilityData={hasVulnerabilityData}
@@ -350,6 +356,8 @@ export default function DependenciesPage() {
                       repositoryName={repo}
                       token={jwtToken || ''}
                       onViewVersion={handleViewVersion}
+                      onScan={handleVulnerabilityScan}
+                      isScanning={localIsScanning}
                     />
                   </div>
                 </div>

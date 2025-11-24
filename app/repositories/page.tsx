@@ -9,10 +9,11 @@ import { AuthService, User } from "@/lib/auth";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { RepositoryCard } from "@/components/RepositoryCard";
+import { RepositorySearch } from "@/components/RepositorySearch";
 import { PageHeader } from "@/components/PageHeader";
 import { ChatbotWidget } from "@/components/ChatbotWidget";
 import { triggerChatbotContext } from "@/lib/chatbot";
-import { FolderGit2, ArrowLeft, Search } from "lucide-react";
+import { FolderGit2, ArrowLeft } from "lucide-react";
 
 export default function RepositoriesPage() {
   const router = useRouter();
@@ -104,18 +105,10 @@ export default function RepositoriesPage() {
           </div>
 
           <div className="w-full md:max-w-xs">
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-base-content/40 group-focus-within:text-primary transition-colors" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search repositories..."
-                className="input input-bordered w-full pl-10 bg-base-100/50 focus:bg-base-100 transition-all shadow-sm focus:shadow-md focus:border-primary/50"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
+            <RepositorySearch
+              value={searchQuery}
+              onChange={setSearchQuery}
+            />
           </div>
         </div>
 

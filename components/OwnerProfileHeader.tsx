@@ -1,5 +1,6 @@
 import Image from "next/image";
-import { Github, ExternalLink, Search, Star, BookOpen, Code2 } from "lucide-react";
+import { Github, ExternalLink, Star, BookOpen, Code2 } from "lucide-react";
+import { RepositorySearch } from "@/components/RepositorySearch";
 
 interface OwnerProfileHeaderProps {
     readonly owner: string;
@@ -75,18 +76,12 @@ export function OwnerProfileHeader({
                     </div>
 
                     <div className="w-full md:w-auto">
-                        <div className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Search className="h-5 w-5 text-base-content/40 group-focus-within:text-primary transition-colors" />
-                            </div>
-                            <input
-                                type="text"
-                                placeholder="Search in this owner..."
-                                className="input input-lg input-bordered pl-10 w-full md:w-80 bg-base-100/50 focus:bg-base-100 transition-all shadow-sm focus:shadow-md focus:border-primary/50"
-                                value={searchQuery}
-                                onChange={(e) => onSearchChange(e.target.value)}
-                            />
-                        </div>
+                        <RepositorySearch
+                            value={searchQuery}
+                            onChange={onSearchChange}
+                            placeholder="Search in this owner..."
+                            inputClassName="input-lg md:w-80"
+                        />
                     </div>
                 </div>
             </div>

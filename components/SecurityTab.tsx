@@ -2,6 +2,7 @@ import React from "react";
 import { Shield, CheckCircle2, AlertTriangle, Package } from "lucide-react";
 import { VulnerabilitySummary } from "@/components/VulnerabilitySummary";
 import { VulnerabilityCard } from "@/components/VulnerabilityCard";
+import { EmptyState } from "@/components/EmptyState";
 
 interface SecurityTabProps {
     hasVulnerabilityData: boolean;
@@ -84,22 +85,10 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({
                     )}
                 </div>
             ) : (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <div className="bg-base-200 p-6 rounded-full mb-4">
-                        <Shield className="h-12 w-12 text-base-content/30" />
-                    </div>
-                    <h3 className="text-lg font-bold mb-2">No security scan data</h3>
-                    <p className="text-base-content/60 max-w-sm mb-6">
-                        Run a vulnerability scan to check your dependencies for known security issues.
-                    </p>
-                    <button
-                        onClick={onScan}
-                        disabled={localIsScanning}
-                        className="btn btn-primary"
-                    >
-                        {localIsScanning ? "Scanning..." : "Scan Now"}
-                    </button>
-                </div>
+                <EmptyState
+                    onScan={onScan}
+                    isScanning={localIsScanning}
+                />
             )}
         </div>
     );
