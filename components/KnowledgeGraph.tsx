@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
 import { Loader2, RefreshCw } from "lucide-react";
 import { API_URL, API_ENDPOINTS } from "@/lib/constants";
+import { GraphLegend } from "@/components/GraphLegend";
 
 interface KnowledgeGraphProps {
     width?: number;
@@ -268,21 +269,12 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
 
             <svg ref={svgRef} width={width} height={height} className="cursor-move bg-slate-50" />
 
-            <div className="absolute bottom-4 left-4 bg-white/90 p-2 rounded-md shadow text-xs space-y-1">
-                <div className="font-semibold mb-1">Legend</div>
-                <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-red-500"></span> Repository
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-blue-500"></span> Package
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-yellow-500"></span> Vulnerability
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-green-500"></span> Scan
-                </div>
-            </div>
+            <GraphLegend items={[
+                { label: "Repository", color: "#ef4444" },
+                { label: "Package", color: "#3b82f6" },
+                { label: "Vulnerability", color: "#eab308" },
+                { label: "Scan", color: "#10b981" }
+            ]} className="right-4" />
         </div>
     );
 };

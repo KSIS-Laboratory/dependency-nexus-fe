@@ -6,12 +6,15 @@ import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthService, User } from "@/lib/auth";
 import KnowledgeGraph from "@/components/KnowledgeGraph";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Network, GitMerge, Share2 } from "lucide-react";
+import { HierarchicalEdgeBundling } from "@/components/HierarchicalEdgeBundling";
+import { CollapsibleTree } from "@/components/CollapsibleTree";
 
 export default function KnowledgeGraphPage() {
     const router = useRouter();
     const { isAuthenticated, isLoading } = useAuth();
     const [user, setUser] = useState<User | null>(null);
+    const [activeTab, setActiveTab] = useState<'force' | 'tree' | 'hierarchical'>('force');
 
     useEffect(() => {
         const loadUser = async () => {
@@ -49,14 +52,46 @@ export default function KnowledgeGraphPage() {
             <main className="container mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
                 <div className="card bg-base-100 shadow-xl">
                     <div className="card-body">
-                        <h2 className="card-title mb-4">Dependency & Vulnerability Graph</h2>
-                        <p className="text-base-content/70 mb-6">
-                            Visualize the relationships between repositories, packages, and vulnerabilities.
-                            Nodes are interactive - drag to rearrange.
-                        </p>
+                        <div className="flex justify-between items-center mb-6">
+                            <div>
+                                <h2 className="card-title">Dependency & Vulnerability Graph</h2>
+                                <p className="text-base-content/70">
+                                    Visualize the relationships between repositories, packages, and vulnerabilities.
+                                </p>
+                            </div>
 
-                        <div className="w-full h-[600px] border rounded-lg overflow-hidden">
-                            <KnowledgeGraph width={1200} height={600} userName={user?.username} />
+                            <div className="tabs tabs-boxed bg-base-200">
+                                <button
+                                    className={`tab ${activeTab === 'force' ? 'tab-active' : ''}`}
+                                    onClick={() => setActiveTab('force')}
+                                >
+                                    <Network className="w-4 h-4 mr-2" /> Force Graph
+                                </button>
+                                <button
+                                    className={`tab ${activeTab === 'tree' ? 'tab-active' : ''}`}
+                                    onClick={() => setActiveTab('tree')}
+                                >
+                                    <GitMerge className="w-4 h-4 mr-2" /> Tree View
+                                </button>
+                                <button
+                                    className={`tab ${activeTab === 'hierarchical' ? 'tab-active' : ''}`}
+                                    onClick={() => setActiveTab('hierarchical')}
+                                >
+                                    <Share2 className="w-4 h-4 mr-2" /> Hierarchical Edge Bundling
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="w-full h-[600px] border rounded-lg overflow-hidden bg-white">
+                            {activeTab === 'force' && (
+                                <KnowledgeGraph width={1200} height={600} userName={user?.username} />
+                            )}
+                            {activeTab === 'tree' && (
+                                <CollapsibleTree userName={user?.username} />
+                            )}
+                            {activeTab === 'hierarchical' && (
+                                <HierarchicalEdgeBundling userName={user?.username} />
+                            )}
                         </div>
                     </div>
                 </div>
