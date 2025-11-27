@@ -54,4 +54,7 @@ export const API_ENDPOINTS = {
     COMPARE: (repoId: string) => `/api/scan-history/repositories/${repoId}/compare`,
     HEALTH: "/api/scan-history/health",
   },
+  CHATBOT: {
+    KNOWLEDGE_QUERY: "/api/chatbot/knowledge/query",
+  },
 } as const;

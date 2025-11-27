@@ -1,5 +1,5 @@
 import { Repository } from "@/lib/github";
-import { FolderGit2, Star, Lock, Globe, MessageCircle, Github, ArrowRight } from "lucide-react";
+import { FolderGit2, Star, Lock, Globe, MessageCircle, Github } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { API_URL, API_ENDPOINTS } from "@/lib/constants";
@@ -52,7 +52,7 @@ export function RepositoryCard({ repository, onClick, onAskAI }: RepositoryCardP
 
   return (
     <div
-      className="group relative bg-base-100/50 backdrop-blur-md border border-base-00 rounded-2xl overflow-hidden hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500 hover:-translate-y-1"
+      className="group relative bg-linear-to-r from-primary/5 via-secondary/5 to-accent/5 backdrop-blur-md shadow-lg rounded-2xl overflow-hidden hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500 hover:-translate-y-1"
     >
       {/* Gradient Overlay on Hover */}
       <div className="absolute inset-0 bg-linear-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />

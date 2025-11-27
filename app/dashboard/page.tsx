@@ -226,6 +226,7 @@ export default function Dashboard() {
           userName={user?.username ?? "team"}
           onRefresh={handleRefreshInsights}
           onViewRepositories={handleNavigateToRepositories}
+          onViewGraph={() => router.push("/knowledge-graph")}
         />
 
         {insightsError && (

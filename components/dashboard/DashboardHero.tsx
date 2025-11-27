@@ -1,12 +1,13 @@
-import { RefreshCcw, LayoutDashboard } from "lucide-react";
+import { RefreshCcw, LayoutDashboard, Network } from "lucide-react";
 
 interface DashboardHeroProps {
   userName?: string;
   onRefresh: () => void;
   onViewRepositories: () => void;
+  onViewGraph: () => void;
 }
 
-export function DashboardHero({ userName = "team", onRefresh, onViewRepositories }: Readonly<DashboardHeroProps>) {
+export function DashboardHero({ userName = "team", onRefresh, onViewRepositories, onViewGraph }: Readonly<DashboardHeroProps>) {
   return (
     <div className="hero bg-base-100 rounded-box shadow-sm border border-base-200">
       <div className="hero-content flex-col lg:flex-row-reverse w-full justify-between p-8">
@@ -25,6 +26,13 @@ export function DashboardHero({ userName = "team", onRefresh, onViewRepositories
           >
             <LayoutDashboard className="h-4 w-4" />
             View Repositories
+          </button>
+          <button
+            className="btn btn-secondary btn-sm gap-2"
+            onClick={onViewGraph}
+          >
+            <Network className="h-4 w-4" />
+            View Graph
           </button>
         </div>
         <div>
