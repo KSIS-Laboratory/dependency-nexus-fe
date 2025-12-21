@@ -1,112 +1,80 @@
-import { type RepositoryActivityItem } from "./types";
-import { formatDateTime, formatRelativeTime, getRiskBadgeClass } from "./utils";
-import { triggerChatbotContext } from "@/lib/chatbot";
-import { MessageCircle, Package } from "lucide-react";
-
-function buildRepoContextMessage(item: RepositoryActivityItem): string {
-  const { repo, summary } = item;
-  const latest = summary?.latestScan;
-  const parts = [
-    `Analyze repository ${repo.full_name} (ID: ${repo.id}).`,
-  ];
-
-  if (latest) {
-    parts.push(
-      `Latest scan (${formatDateTime(latest.scan_timestamp)}): ${latest.total_vulnerabilities ?? 0} vulnerabilities impacting ${latest.total_packages ?? 0} packages.`
-    );
-  } else {
-    parts.push("No scan history yet; suggest next actions to initiate vulnerability scanning.");
-  }
-
-  parts.push("Provide prioritized remediation guidance tailored to this repository.");
-
-  return parts.join(" \n");
-}
+import type { RepositoryActivityItem } from "./types";
+import { formatRelativeTime, getRiskBadgeClass } from "./utils"
+import { Activity, ArrowRight } from "lucide-react";
 
 interface RecentActivityCardProps {
-  activity: RepositoryActivityItem[];
+  activities: RepositoryActivityItem[];
+  onViewAll: () => void;
+  onViewRepository: (fullName: string) => void;
 }
 
-
-
-export function RecentActivityCard({ activity }: Readonly<RecentActivityCardProps>) {
-  const handleAskAssistant = (item: RepositoryActivityItem) => {
-    const message = buildRepoContextMessage(item);
-    triggerChatbotContext({ message, autoSend: true });
-  };
-
+export function RecentActivityCard({ activities, onViewAll, onViewRepository }: Readonly<RecentActivityCardProps>) {
   return (
-    <div className="card bg-base-100 shadow-xl border border-base-200">
-      <div className="card-body p-0 sm:p-6">
-        <div className="flex items-center justify-between px-6 pt-6 sm:px-0 sm:pt-0">
-          <div>
-            <h3 className="card-title text-lg">Recent Activity</h3>
-            <p className="text-base-content/70 text-sm">Latest vulnerability scans</p>
+    <div className="card bg-base-100 shadow-md animate-slide-up" style={{ animationDelay: '0.08s' }}>
+      <div className="card-body">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <Activity className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-base-content">Recent Activity</h3>
+              <p className="text-base-content/60 text-sm">Latest vulnerability scans</p>
+            </div>
           </div>
+          <button className="btn btn-ghost btn-sm gap-1" onClick={onViewAll}>
+            View all
+            <ArrowRight className="h-4 w-4" />
+          </button>
         </div>
 
-        {activity.length === 0 ? (
-          <div className="py-12 text-center text-base-content/60">
-            No scans yet. Run a vulnerability scan to see results here.
-          </div>
-        ) : (
-          <div className="overflow-x-auto mt-4">
-            <table className="table table-zebra w-full">
+        {activities.length > 0 ? (
+          <div className="overflow-x-auto -mx-4 px-4">
+            <table className="table table-sm">
               <thead>
-                <tr>
+                <tr className="text-base-content/60">
                   <th>Repository</th>
-                  <th className="hidden sm:table-cell">Last Scan</th>
-                  <th className="text-center">Vulns</th>
-                  <th className="text-center hidden md:table-cell">Packages</th>
-                  <th className="text-right">Actions</th>
+                  <th className="hidden sm:table-cell">Scanned</th>
+                  <th>Vulnerabilities</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
-                {activity.map(({ repo, summary }) => (
-                  <tr key={repo.id} className="hover">
+                {activities.map(({ repo, summary }) => (
+                  <tr key={repo.id} className="hover:bg-base-200/50">
                     <td>
-                      <div className="font-bold text-primary">{repo.name}</div>
-                      <div className="text-xs opacity-50 truncate max-w-[150px] sm:max-w-xs">
-                        {repo.full_name}
-                      </div>
-                      <div className="sm:hidden text-xs mt-1 opacity-70">
+                      <div className="font-bold text-base-content">{repo.name}</div>
+                      <div className="text-xs text-base-content/60 sm:hidden">
                         {formatRelativeTime(summary?.latestScan?.scan_timestamp)}
                       </div>
                     </td>
-                    <td className="hidden sm:table-cell">
-                      <div className="text-sm">
-                        {formatRelativeTime(summary?.latestScan?.scan_timestamp)}
-                      </div>
-                      <div className="text-xs opacity-50">
-                        {formatDateTime(summary?.latestScan?.scan_timestamp)}
-                      </div>
+                    <td className="hidden sm:table-cell text-base-content/60">
+                      {formatRelativeTime(summary?.latestScan?.scan_timestamp)}
                     </td>
-                    <td className="text-center">
-                      <span className={`badge badge-sm ${getRiskBadgeClass(summary?.latestScan?.total_vulnerabilities ?? 0)}`}>
+                    <td>
+                      <span className={`badge ${getRiskBadgeClass(summary?.latestScan?.total_vulnerabilities ?? 0)} badge-sm`}>
                         {summary?.latestScan?.total_vulnerabilities ?? 0}
                       </span>
                     </td>
-                    <td className="text-center hidden md:table-cell">
-                      <div className="flex items-center justify-center gap-1 opacity-70">
-                        <Package className="w-3 h-3" />
-                        {summary?.latestScan?.total_packages ?? "-"}
-                      </div>
-                    </td>
-                    <td className="text-right">
+                    <td>
                       <button
-                        className="btn btn-ghost btn-xs sm:btn-sm text-secondary tooltip tooltip-left"
-                        data-tip="Ask AI Assistant"
-                        onClick={() => handleAskAssistant({ repo, summary })}
-                        aria-label={`Ask AI about ${repo.name}`}
+                        onClick={() => onViewRepository(repo.full_name)}
+                        className="btn btn-ghost btn-xs text-base-content/60 tooltip tooltip-left"
+                        data-tip="View details"
+                        aria-label={`View details for ${repo.name}`}
                       >
-                        <MessageCircle className="w-4 h-4" />
-                        <span className="hidden sm:inline ml-1">Ask AI</span>
+                        <ArrowRight className="h-4 w-4" />
                       </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        ) : (
+          <div className="text-center py-8 text-base-content/60">
+            <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p>No recent activity</p>
           </div>
         )}
       </div>

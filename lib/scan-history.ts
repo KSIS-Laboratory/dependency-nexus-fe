@@ -28,7 +28,7 @@ export interface DependencyScanVersion {
     total: number;
     critical: number;
     high: number;
-    medium: number;
+    moderate: number;
     low: number;
   };
 }
@@ -72,7 +72,7 @@ export interface ScanVersionListResponse {
       total: number;
       critical: number;
       high: number;
-      medium: number;
+      moderate: number;
       low: number;
     };
   }>;

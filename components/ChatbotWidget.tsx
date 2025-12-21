@@ -1,8 +1,132 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, X, MessageCircle, Copy, Check, Trash2 } from "lucide-react";
+import { Send, X, MessageCircle, Copy, Check, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { useChatbot } from "@/hooks/useChatbot";
+
+/**
+ * Component to render batched vulnerability analysis responses
+ * Parses sections marked with "--- ส่วนที่ X ---" and displays them as collapsible sections
+ */
+function BatchedMessageContent({ content }: Readonly<{ content: string }>) {
+  const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set([0]));
+
+  // Check if this is a batched response (contains section markers)
+  const isBatchedResponse = content.includes("--- ส่วนที่");
+
+  if (!isBatchedResponse) {
+    // Regular message - render as-is
+    return (
+      <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word text-base-content/60">
+        {content}
+      </p>
+    );
+  }
+
+  // Parse batched response into sections
+  const parts = content.split(/---\s*ส่วนที่\s*(\d+)\s*---/);
+  const sections: { header: string | null; content: string }[] = [];
+
+  // First part is the header (before any section markers)
+  if (parts[0].trim()) {
+    sections.push({ header: null, content: parts[0].trim() });
+  }
+
+  // Parse remaining parts (number, content pairs)
+  for (let i = 1; i < parts.length; i += 2) {
+    const sectionNum = parts[i];
+    const sectionContent = parts[i + 1]?.trim() || "";
+    if (sectionContent) {
+      sections.push({ header: `ส่วนที่ ${sectionNum}`, content: sectionContent });
+    }
+  }
+
+  const toggleSection = (idx: number) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) {
+        next.delete(idx);
+      } else {
+        next.add(idx);
+      }
+      return next;
+    });
+  };
+
+  const expandAll = () => {
+    setExpandedSections(new Set(sections.map((_, i) => i)));
+  };
+
+  const collapseAll = () => {
+    setExpandedSections(new Set());
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* Header section (summary) */}
+      {sections[0]?.header === null && (
+        <div className="pb-2 border-b border-base-content/10">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word text-base-content/80 font-medium">
+            {sections[0].content}
+          </p>
+        </div>
+      )}
+
+      {/* Expand/Collapse controls */}
+      {sections.length > 2 && (
+        <div className="flex gap-2 text-xs">
+          <button
+            onClick={expandAll}
+            className="btn btn-ghost btn-xs text-primary"
+          >
+            ขยายทั้งหมด
+          </button>
+          <button
+            onClick={collapseAll}
+            className="btn btn-ghost btn-xs text-primary"
+          >
+            ยุบทั้งหมด
+          </button>
+        </div>
+      )}
+
+      {/* Collapsible sections */}
+      {sections.slice(sections[0]?.header === null ? 1 : 0).map((section, idx) => {
+        const actualIdx = sections[0]?.header === null ? idx + 1 : idx;
+        const isExpanded = expandedSections.has(actualIdx);
+
+        return (
+          <div
+            key={actualIdx}
+            className="border border-base-content/10 rounded-lg overflow-hidden"
+          >
+            <button
+              onClick={() => toggleSection(actualIdx)}
+              className="w-full flex items-center justify-between p-3 bg-base-200/50 hover:bg-base-200 transition-colors text-left"
+            >
+              <span className="text-sm font-medium text-base-content/80 flex items-center gap-2">
+                <span className="badge badge-primary badge-sm">{section.header}</span>
+              </span>
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4 text-base-content/50" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-base-content/50" />
+              )}
+            </button>
+
+            {isExpanded && (
+              <div className="p-3 bg-base-100">
+                <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word text-base-content/60">
+                  {section.content}
+                </p>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 interface ChatbotWidgetProps {
   readonly userId: string;
@@ -16,7 +140,7 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
   const handleChatbotError = useCallback((err: string) => {
     console.error("Chatbot error:", err);
   }, []);
-  
+
   const {
     messages,
     input,
@@ -122,10 +246,10 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
       {/* Floating Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className="btn btn-circle btn-lg fixed bottom-6 right-6 z-40 bg-linear-to-br from-primary to-secondary shadow-2xl hover:shadow-primary/50 hover:scale-110 active:scale-95 transition-all border-none"
+        className="btn btn-circle btn-lg fixed bottom-6 right-6 z-40 bg-linear-to-br from-base-content/10 to-base-content/10 shadow-2xl hover:shadow-base-content/50 hover:scale-110 active:scale-95 transition-all border-none"
         aria-label="Open AI Assistant"
       >
-        <MessageCircle className="h-7 w-7 text-primary-content" />
+        <MessageCircle className="h-7 w-7 text-white" />
       </button>
 
       {/* Modal Overlay */}
@@ -135,20 +259,19 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
             ref={modalRef}
             aria-modal="true"
             tabIndex={-1}
-            className="modal-box h-230 max-w-2xl w-full p-0 bg-base-100 flex flex-col rounded-3xl shadow-2xl"
+            className="modal-box h-230 max-w-2xl w-full p-0 liquid-glass-modal flex flex-col overflow-hidden"
           >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-base-200 px-6 py-4 bg-base-100 rounded-t-3xl">
+            <div className="flex items-center justify-between border-b border-theme px-6 py-4 bg-theme-secondary rounded-t-3xl">
               <div>
-                <p className="text-xs uppercase tracking-wide text-base-content/60">AI Assistant</p>
-                <h2 className="text-lg font-semibold text-primary">Dependency & Security Advisor</h2>
-                <p className="text-xs text-base-content/60">Powered by Llama 3.1</p>
+                <p className="text-xs uppercase tracking-wide text-theme-muted">AI Assistant</p>
+                <h2 className="text-lg font-semibold text-gradient">Dependency & Security Advisor</h2>
+                <p className="text-xs text-theme-muted">Powered by Llama 3.1</p>
               </div>
               <div className="flex items-center gap-4">
                 <button
-                  type="button"
                   onClick={handleClearHistory}
-                  className="btn btn-outline btn-circle btn-error"
+                  className="btn btn-circle "
                   disabled={messages.length === 0}
                   aria-label="Clear"
                 >
@@ -156,7 +279,7 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
                 </button>
                 <button
                   onClick={handleClose}
-                  className="btn btn-outline btn-circle btn-error"
+                  className="btn btn-circle"
                   aria-label="Close"
                 >
                   <X className="h-5 w-5" />
@@ -165,21 +288,21 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-base-200/40">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-theme-secondary/50">
               {messages.length === 0 && !error && (
                 <div className="hero h-full">
                   <div className="hero-content text-center">
                     <div className="max-w-md space-y-4">
                       <div className="avatar placeholder">
-                        <div className="bg-primary/20 text-primary rounded-2xl w-16 flex items-center justify-center">
+                        <div className="bg-base-content/10 text-primary rounded-2xl w-16 flex items-center justify-center">
                           <MessageCircle className="h-8 w-8 animate-pulse" />
                         </div>
                       </div>
                       <div>
-                        <h1 className="text-2xl font-bold text-primary">
+                        <h1 className="text-2xl font-bold text-base-content">
                           {chatbotReady ? "สวัสดี! 👋" : "กำลังเตรียมตัว..."}
                         </h1>
-                        <p className="py-2 text-base-content/70">
+                        <p className="py-2 text-[#778873]">
                           {chatbotReady
                             ? "ถามเกี่ยวกับ dependencies และ vulnerabilities ได้เลย"
                             : "Initializing chatbot..."}
@@ -187,9 +310,9 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
                       </div>
                       {chatbotReady && (
                         <div className="flex gap-2 justify-center">
-                          <span className="badge badge-primary badge-outline">CVE</span>
-                          <span className="badge badge-secondary badge-outline">Dependencies</span>
-                          <span className="badge badge-accent badge-outline">Security</span>
+                          <span className="badge text-primary border-base-content/10">CVE</span>
+                          <span className="badge text-secondary border-base-content/10">Dependencies</span>
+                          <span className="badge text-accent border-base-content/10">Security</span>
                         </div>
                       )}
                     </div>
@@ -218,15 +341,13 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
                         <MessageCircle className="h-4 w-4" />
                       </div>
                     )}
-                    <div className={`group relative max-w-3xl w-full rounded-2xl border ${
-                      isUser
-                        ? "bg-primary/30 text-primary-content border-primary/30"
-                        : "bg-base-100 border-base-300"
-                    } p-4 shadow-sm transition hover:shadow-md`}
+                    <div className={`group relative max-w-3xl w-full rounded-2xl border ${isUser
+                      ? "bg-base-content/10 text-base-content/60 border-base-content/10"
+                      : "bg-white/80 border-base-content/10"
+                      } p-4 shadow-sm transition hover:shadow-md`}
                     >
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-words text-base-content">
-                        {message.content}
-                      </p>
+                      {/* Render batched content with sections */}
+                      <BatchedMessageContent content={message.content} />
                       <button
                         onClick={() => copyToClipboard(message.content, message.id)}
                         className="absolute -right-2 -top-2 hidden bg-base-100/90 p-1 text-base-content/70 shadow group-hover:flex btn btn-circle btn-sm btn-ghost"
@@ -254,21 +375,21 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
             </div>
 
             {/* Input */}
-            <form onSubmit={handleSendMessage} className="border-t border-base-200 p-4">
+            <form onSubmit={handleSendMessage} className="border-t border-base-content/10 p-4 bg-base/50">
               <div className="flex flex-col gap-3">
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="ถามเกี่ยวกับ dependencies, vulnerabilities หรือ security guidance..."
                   disabled={!chatbotReady || loading}
-                  className="textarea textarea-bordered min-h-20 w-full resize-none text-base-content/90"
+                  className="textarea input-nature min-h-20 w-full resize-none text-base-content"
                 />
                 <div className="flex items-center justify-between text-xs text-base-content/60">
                   <span>{chatbotReady ? "พร้อมตอบทุกคำถาม" : "กำลังเตรียมตัว..."}</span>
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      className="btn btn-ghost btn-sm"
+                      className="btn btn-sm btn-ghost text-base-content/60 hover:bg-base-content/20"
                       onClick={() => setInput("")}
                       disabled={!input}
                     >
@@ -277,7 +398,7 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
                     <button
                       type="submit"
                       disabled={!chatbotReady || loading || !input.trim()}
-                      className="btn btn-primary"
+                      className="btn btn-nature"
                     >
                       <Send className="h-5 w-5" />
                     </button>

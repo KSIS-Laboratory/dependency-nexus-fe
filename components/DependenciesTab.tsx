@@ -38,12 +38,12 @@ export const DependenciesTab: React.FC<DependenciesTabProps> = ({
                     {/* Left Column: Dependency Files */}
                     <div className="lg:col-span-4 xl:col-span-3">
                         <div className="sticky top-24 space-y-6">
-                            <div className="card bg-base-200/50 border border-base-300 shadow-sm">
+                            <div className="glass rounded-2xl">
                                 <div className="card-body p-5">
                                     <h3 className="font-bold text-lg flex items-center gap-2 text-base-content mb-4">
                                         <FileCode className="h-5 w-5 text-primary" />
                                         Files
-                                        <div className="badge badge-primary badge-sm ml-auto">
+                                        <div className="badge bg-primary text-white border-none ml-auto">
                                             {Object.keys(analysis?.dependency_files || {}).length}
                                         </div>
                                     </h3>
@@ -59,7 +59,7 @@ export const DependenciesTab: React.FC<DependenciesTabProps> = ({
                                 </div>
                             </div>
 
-                            <div className="card bg-primary/5 border border-primary/10 shadow-sm">
+                            <div className="glass-card bg-primary/5 border-primary/30 rounded-2xl">
                                 <div className="card-body p-5">
                                     <div className="flex items-center gap-3 mb-2">
                                         <Box className="h-5 w-5 text-primary" />

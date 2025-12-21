@@ -20,9 +20,8 @@ export function OwnerProfileHeader({
     onSearchChange,
 }: Readonly<OwnerProfileHeaderProps>) {
     return (
-        <div className="relative overflow-hidden rounded-3xl bg-base-100 shadow-lg border border-base-200 mb-8">
-            <div className="absolute inset-0 bg-linear-to-r from-primary/5 via-secondary/5 to-accent/5 opacity-50" />
-            <div className="absolute top-0 right-0 p-12 opacity-10 pointer-events-none">
+        <div className="relative overflow-hidden mb-8 animate-slide-up glass-card border border-base-200 rounded-xl bg-linear-to-br from-base-200 to-secondary/50">
+            <div className="absolute top-0 right-0 p-12 opacity-10 pointer-events-none text-primary">
                 <Github className="w-64 h-64 rotate-12" />
             </div>
 
@@ -35,7 +34,7 @@ export function OwnerProfileHeader({
                             alt={owner}
                             width={100}
                             height={100}
-                            className="relative rounded-full border-4 border-base-100 shadow-xl"
+                            className="relative rounded-full border-2 border-primary shadow-xl"
                             unoptimized
                         />
                     </div>
@@ -47,27 +46,27 @@ export function OwnerProfileHeader({
                                 href={`https://github.com/${owner}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="btn btn-ghost btn-circle btn-sm text-base-content/50 hover:text-primary hover:bg-primary/10"
+                                className="p-2 rounded-full text-base-content hover:text-primary hover:bg-primary/10"
                                 title="View on GitHub"
                             >
                                 <ExternalLink className="h-5 w-5" />
                             </a>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-6 text-base-content/70">
+                        <div className="flex flex-wrap items-center gap-6 text-base-content">
                             <div className="flex items-center gap-2">
-                                <BookOpen className="h-4 w-4 text-primary" />
+                                <BookOpen className="h-4 w-4" />
                                 <span className="font-medium">{repositoryCount}</span>
                                 <span>Repositories</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <Star className="h-4 w-4 text-warning" />
+                                <Star className="h-4 w-4 text-amber-500" />
                                 <span className="font-medium">{totalStars}</span>
                                 <span>Total Stars</span>
                             </div>
                             {languages.length > 0 && (
                                 <div className="flex items-center gap-2">
-                                    <Code2 className="h-4 w-4 text-secondary" />
+                                    <Code2 className="h-4 w-4" />
                                     <span className="font-medium">{languages.length}</span>
                                     <span>Languages</span>
                                 </div>
@@ -80,7 +79,7 @@ export function OwnerProfileHeader({
                             value={searchQuery}
                             onChange={onSearchChange}
                             placeholder="Search in this owner..."
-                            inputClassName="input-lg md:w-80"
+                            className="w-full md:w-80"
                         />
                     </div>
                 </div>

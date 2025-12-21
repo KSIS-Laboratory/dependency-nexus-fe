@@ -3,9 +3,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
 import { API_URL, API_ENDPOINTS } from "@/lib/constants";
-import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { AlertCircle } from "lucide-react";
+import { VisualizationLoadingOverlay } from "@/components/VisualizationLoadingOverlay";
+import { AlertCircle, RefreshCw } from "lucide-react";
 import { GraphLegend } from "@/components/GraphLegend";
+import { TREE_DATA_QUERY, COMPARE_REPOS_QUERY } from "@/lib/graph-queries";
+import { VulnerabilityDetailModal } from "@/components/VulnerabilityDetailModal";
+
+import { RepositorySelector } from "./RepositorySelector";
 
 interface CollapsibleTreeProps {
     readonly userName?: string;
@@ -27,69 +31,76 @@ interface TreeNode {
 
 // Extend D3's HierarchyPointNode to include state for animation and collapsing
 interface ExtendedHierarchyNode extends d3.HierarchyPointNode<TreeNode> {
-    readonly x0?: number;
-    readonly y0?: number;
-    readonly _children?: ExtendedHierarchyNode[] | null; // Store collapsed children here
+    x0?: number;
+    y0?: number;
+    _children?: ExtendedHierarchyNode[]; // Store collapsed children here
+    id?: string;
 }
 
 export const CollapsibleTree: React.FC<CollapsibleTreeProps> = ({ userName }) => {
     const svgRef = useRef<SVGSVGElement>(null);
+
     const [data, setData] = useState<RawData[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [selectedVulnId, setSelectedVulnId] = useState<string | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // Fetch data
-    useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const cypherQuery = `
-          MATCH (s:Scan)
-          WHERE s.scanned_by = $userName OR s.scanned_by = 'System'
-          MATCH (s)-[:INCLUDES_PACKAGE]->(p:Package)
-          OPTIONAL MATCH (r:Repository)-[:HAS_SCAN]->(s)
-          OPTIONAL MATCH (p)-[:AFFECTS]-(v:Vulnerability)
-          RETURN COALESCE(r.name, "Unknown Repo") as repo, p.name as package, v.severity as severity, v.id as vuln_id
-          LIMIT 2000
-        `;
+    // Repo selection state
+    const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
 
-                console.log("Fetching Tree Data for user:", userName);
-                const response = await fetch(
-                    `${API_URL}${API_ENDPOINTS.CHATBOT.KNOWLEDGE_QUERY}`,
-                    {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            cypher_query: cypherQuery,
-                            parameters: { userName: userName || "System" },
-                        }),
-                    }
-                );
 
-                if (!response.ok) throw new Error("Failed to fetch graph data");
 
-                const json = await response.json();
-                console.log("Tree Data Result:", json);
-                if (json.results && Array.isArray(json.results)) {
-                    setData(json.results);
-                } else if (Array.isArray(json)) {
-                    setData(json);
-                } else {
-                    console.error("Unexpected data format:", json);
-                    setData([]);
+    // Fetch tree data
+    const fetchData = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            // Use repo-specific query if repos are selected
+            const cypherQuery = selectedRepos.length > 0 ? COMPARE_REPOS_QUERY : TREE_DATA_QUERY;
+            const parameters = selectedRepos.length > 0
+                ? { repoNames: selectedRepos }
+                : { userName: userName || "System" };
+
+            const response = await fetch(
+                `${API_URL}${API_ENDPOINTS.CHATBOT.KNOWLEDGE_QUERY}`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        cypher_query: cypherQuery,
+                        parameters,
+                    }),
                 }
-            } catch (err: any) {
-                setError(err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
+            );
 
-        if (userName) {
-            fetchData();
+            if (!response.ok) throw new Error("Failed to fetch graph data");
+
+            const json = await response.json();
+            if (json.results && Array.isArray(json.results)) {
+                setData(json.results);
+            } else if (Array.isArray(json)) {
+                setData(json);
+            } else {
+                console.error("Unexpected data format:", json);
+                setData([]);
+            }
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
         }
-    }, [userName]);
+    };
+
+    useEffect(() => {
+        if (selectedRepos.length > 0) {
+            fetchData();
+        } else {
+            // Clear data when no repos selected
+            setData([]);
+            setLoading(false);
+        }
+    }, [selectedRepos]);
 
     // Zoom behavior
     const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
@@ -151,8 +162,14 @@ export const CollapsibleTree: React.FC<CollapsibleTreeProps> = ({ userName }) =>
         // @ts-ignore
         gRef.current = g.node();
 
+        // Calculate dynamic max zoom based on node count
+        const totalNodes = root.descendants().length;
+        // Base max zoom of 4, add 1 for every 20 nodes to allow deeper zoom for larger trees
+        // Cap at 50 to prevent excessive zooming
+        const maxZoom = Math.min(50, Math.max(4, 4 + Math.floor(totalNodes / 20)));
+
         const zoom = d3.zoom<SVGSVGElement, unknown>()
-            .scaleExtent([0.1, 4])
+            .scaleExtent([0.1, maxZoom])
             .on("zoom", (event) => {
                 g.attr("transform", event.transform);
             });
@@ -172,7 +189,7 @@ export const CollapsibleTree: React.FC<CollapsibleTreeProps> = ({ userName }) =>
 
         function update(source: ExtendedHierarchyNode) {
             const duration = 250;
-            const nodes = root.descendants() as ExtendedHierarchyNode[];
+            const nodes = root.descendants();
             const links = root.links();
 
             tree(root);
@@ -199,20 +216,43 @@ export const CollapsibleTree: React.FC<CollapsibleTreeProps> = ({ userName }) =>
                 .attr("fill-opacity", 0)
                 .attr("stroke-opacity", 0)
                 .on("click", (event, d) => {
+                    if (d.data.type === 'vulnerability') {
+                        setSelectedVulnId(d.data.name);
+                        setIsModalOpen(true);
+                        // Prevent event bubbling if needed, though D3 handles it
+                        event.stopPropagation();
+                        return;
+                    }
+
                     if (d.children) {
-                        d._children = d.children as ExtendedHierarchyNode[];
-                        d.children = null;
+                        d._children = d.children;
+                        d.children = undefined;
                     } else {
                         d.children = d._children;
-                        d._children = null;
+                        d._children = undefined;
                     }
                     update(d);
                 });
 
             nodeEnter.append("circle")
                 .attr("r", 5)
-                .attr("fill", (d) => d._children ? "#555" : "#999")
+                .attr("fill", (d) => {
+                    if (d.data.type === 'vulnerability') {
+                        const sev = d.data.severity?.toUpperCase() || "";
+                        if (sev.includes("CRITICAL")) return "#ef4444";
+                        if (sev.includes("HIGH")) return "#f97316";
+                        if (sev.includes("MODERATE")) return "#eab308";
+                        if (sev.includes("LOW")) return "#3b82f6";
+                        return "#9ca3af"; // Gray for unknown/no severity
+                    }
+                    return d._children ? "#555" : "#999";
+                })
                 .attr("stroke-width", 10);
+
+            // Get theme color for text
+            const computedStyle = getComputedStyle(document.documentElement);
+            const baseContentColor = computedStyle.getPropertyValue('--bc').trim();
+            const themeTextColor = baseContentColor ? `oklch(${baseContentColor})` : 'currentColor';
 
             nodeEnter.append("text")
                 .attr("dy", "0.31em")
@@ -224,17 +264,17 @@ export const CollapsibleTree: React.FC<CollapsibleTreeProps> = ({ userName }) =>
                 .attr("stroke-width", 3)
                 .attr("stroke", "white");
 
-            // Color text by severity
+            // Color text by severity (vulnerabilities) or theme color (others)
             nodeEnter.select("text")
                 .attr("fill", (d) => {
                     if (d.data.type === 'vulnerability') {
                         const sev = d.data.severity?.toUpperCase() || "";
                         if (sev.includes("CRITICAL")) return "#ef4444";
                         if (sev.includes("HIGH")) return "#f97316";
-                        if (sev.includes("MEDIUM")) return "#eab308";
+                        if (sev.includes("MODERATE")) return "#eab308";
                         if (sev.includes("LOW")) return "#3b82f6";
                     }
-                    return "black";
+                    return themeTextColor;
                 });
 
             // Transition nodes to new position
@@ -244,7 +284,17 @@ export const CollapsibleTree: React.FC<CollapsibleTreeProps> = ({ userName }) =>
                 .attr("stroke-opacity", 1);
 
             node.select("circle")
-                .attr("fill", (d) => d._children ? "#555" : "#999");
+                .attr("fill", (d) => {
+                    if (d.data.type === 'vulnerability') {
+                        const sev = d.data.severity?.toUpperCase() || "";
+                        if (sev.includes("CRITICAL")) return "#ef4444";
+                        if (sev.includes("HIGH")) return "#f97316";
+                        if (sev.includes("MODERATE")) return "#eab308";
+                        if (sev.includes("LOW")) return "#3b82f6";
+                        return "#9ca3af"; // Gray for unknown/no severity
+                    }
+                    return d._children ? "#555" : "#999";
+                });
 
             // Exit nodes
             node.exit().transition(transition as any).remove()
@@ -289,8 +339,8 @@ export const CollapsibleTree: React.FC<CollapsibleTreeProps> = ({ userName }) =>
                     repo.children.forEach((pkg) => {
                         // Collapse if it has children (vulnerabilities)
                         if (pkg.children) {
-                            (pkg as ExtendedHierarchyNode)._children = pkg.children as ExtendedHierarchyNode[];
-                            pkg.children = null;
+                            (pkg)._children = pkg.children;
+                            pkg.children = undefined;
                         }
                     });
                 }
@@ -301,35 +351,117 @@ export const CollapsibleTree: React.FC<CollapsibleTreeProps> = ({ userName }) =>
 
     }, [data]);
 
-    const handleZoom = (factor: number) => {
-        if (!svgRef.current || !zoomRef.current) return;
-        d3.select(svgRef.current).transition().call(zoomRef.current.scaleBy, factor);
-    };
+    // const handleZoom = (factor: number) => {
+    //     if (!svgRef.current || !zoomRef.current) return;
+    //     d3.select(svgRef.current).transition().call(zoomRef.current.scaleBy, factor);
+    // };
 
-    const handleReset = () => {
-        if (!svgRef.current || !zoomRef.current) return;
-        d3.select(svgRef.current).transition().call(zoomRef.current.transform, d3.zoomIdentity);
-    };
+    // const handleReset = () => {
+    //     if (!svgRef.current || !zoomRef.current) return;
+    //     d3.select(svgRef.current).transition().call(zoomRef.current.transform, d3.zoomIdentity);
+    // };
 
-    if (loading) return <LoadingSpinner message="Loading tree data..." />;
-    if (error) return <div className="alert alert-error"><AlertCircle className="w-4 h-4" />{error}</div>;
-    if (!data.length) return <div className="alert alert-info">No data found for tree visualization.</div>;
+    if (loading) return (
+        <div className="relative w-full h-full overflow-hidden bg-base-100 rounded-lg">
+            <VisualizationLoadingOverlay message="Loading tree data..." />
+        </div>
+    );
+    if (error) return (
+        <div className="flex items-center justify-center h-full bg-base-100 p-4">
+            <div className="alert alert-error max-w-md shadow-lg">
+                <AlertCircle className="w-5 h-5" />
+                <span>{error}</span>
+            </div>
+        </div>
+    );
+    if (!data.length) return (
+        <div className="flex flex-col items-center justify-center h-full bg-base-100 p-8 relative">
+            {/* Controls - Keep dropdown accessible */}
+            <div className="absolute top-4 right-4 z-10">
+                <RepositorySelector
+                    selectedRepos={selectedRepos}
+                    onSelectionChange={setSelectedRepos}
+                />
+            </div>
+
+            {/* Prompt Message */}
+            <div className="text-center">
+                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center">
+                    <svg className="w-10 h-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-base-content mb-2">Select a Repository</h3>
+                <p className="text-base-content/60 max-w-sm">Choose one or more repositories from the dropdown above to visualize their dependency tree.</p>
+            </div>
+        </div>
+    );
 
     return (
-        <div className="relative w-full h-full overflow-hidden bg-white rounded-lg border p-4">
+        <div className="relative w-full h-full overflow-hidden bg-base-100 rounded-lg">
+            {/* Controls Bar */}
             <div className="absolute top-4 right-4 flex gap-2 z-10">
-                <button className="btn btn-sm btn-circle btn-ghost bg-base-200" onClick={() => handleZoom(1.2)}>+</button>
-                <button className="btn btn-sm btn-circle btn-ghost bg-base-200" onClick={() => handleZoom(0.8)}>-</button>
-                <button className="btn btn-sm btn-ghost bg-base-200" onClick={handleReset}>Reset</button>
+                {/* Repo Selector Dropdown */}
+                <RepositorySelector
+                    selectedRepos={selectedRepos}
+                    onSelectionChange={setSelectedRepos}
+                />
+
+                {/* Refresh Button */}
+                <button
+                    onClick={fetchData}
+                    className="btn btn-sm btn-circle bg-base-100 shadow-md border-base-300 hover:bg-base-200 transition-all"
+                    title="Refresh"
+                >
+                    <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+                </button>
+
+                {/* Zoom Controls */}
+                {/* <div className="join shadow-md">
+                    <button
+                        className="btn btn-sm join-item bg-base-100 border-base-300 hover:bg-base-200 text-lg font-bold"
+                        onClick={() => handleZoom(1.2)}
+                        title="Zoom In"
+                    >
+                        +
+                    </button>
+                    <button
+                        className="btn btn-sm join-item bg-base-100 border-base-300 hover:bg-base-200 text-lg font-bold"
+                        onClick={() => handleZoom(0.8)}
+                        title="Zoom Out"
+                    >
+                        −
+                    </button>
+                </div>
+                <button
+                    className="btn btn-sm bg-base-100 border-base-300 hover:bg-base-200 shadow-md"
+                    onClick={handleReset}
+                    title="Reset View"
+                >
+                    Reset
+                </button> */}
             </div>
-            <svg ref={svgRef} className="w-full h-full min-h-[800px]"></svg>
+
+            {/* Tree Canvas */}
+            <svg ref={svgRef} className="w-full h-full min-h-[600px] bg-base-200/30"></svg>
+
+            {/* Legend */}
             <GraphLegend items={[
                 { label: "Critical Severity", color: "#ef4444" },
                 { label: "High Severity", color: "#f97316" },
-                { label: "Medium Severity", color: "#eab308" },
+                { label: "Moderate Severity", color: "#eab308" },
                 { label: "Low Severity", color: "#3b82f6" },
-                { label: "Repository / Package", color: "#555" }
+                { label: "Unknown / None", color: "#9ca3af" },
             ]} />
+
+            {/* Vulnerability Detail Modal */}
+            {selectedVulnId && (
+                <VulnerabilityDetailModal
+                    vulnId={selectedVulnId}
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                />
+            )}
         </div>
     );
 };

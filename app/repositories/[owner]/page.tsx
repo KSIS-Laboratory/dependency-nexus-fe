@@ -57,7 +57,7 @@ export default function OwnerRepositoriesPage({ params }: { readonly params: Pro
 
     const handleAskAI = (repoName: string) => {
         triggerChatbotContext({
-            message: `Analyze repository ${repoName}`,
+            message: `วิเคราะห์ช่องโหว่ใน ${repoName} แบบสั้นๆ`,
             autoSend: true,
         });
     };

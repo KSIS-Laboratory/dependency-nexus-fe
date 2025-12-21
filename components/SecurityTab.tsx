@@ -29,12 +29,14 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({
                     {totalVulnerabilityCount > 0 ? (
                         <VulnerabilitySummary data={vulnerabilityData} />
                     ) : (
-                        <div className="alert alert-success shadow-lg bg-success/10 border-success/20">
-                            <CheckCircle2 className="h-6 w-6 text-success" />
-                            <div>
-                                <h3 className="font-bold text-success">Secure & Safe!</h3>
-                                <div className="text-sm opacity-80">
-                                    No known vulnerabilities found in your dependencies.
+                        <div className="glass-card p-4 border-l-4 border-green-500">
+                            <div className="flex items-center gap-3">
+                                <CheckCircle2 className="h-6 w-6 text-green-500" />
+                                <div>
+                                    <h3 className="font-bold text-green-600">Secure & Safe!</h3>
+                                    <div className="text-sm text-[#778873]">
+                                        No known vulnerabilities found in your dependencies.
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -43,11 +45,11 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({
                     {/* Detailed List */}
                     {totalVulnerabilityCount > 0 && (
                         <div className="space-y-6">
-                            <div className="flex items-center gap-2 pb-2 border-b border-base-200">
-                                <AlertTriangle className="h-5 w-5 text-error" />
-                                <h3 className="font-bold text-lg">Vulnerability Details</h3>
+                            <div className="flex items-center gap-2 pb-2 border-b border-[#D2DCB6]">
+                                <AlertTriangle className="h-5 w-5 text-red-500" />
+                                <h3 className="font-bold text-lg text-[#2D3B2D]">Vulnerability Details</h3>
                                 {scanFromCache && (
-                                    <span className="badge badge-success badge-sm gap-1 text-white border-none ml-auto">
+                                    <span className="badge bg-[#A1BC98] text-white border-none ml-auto gap-1">
                                         <Shield className="h-3 w-3" />
                                         Cached Result
                                     </span>
@@ -59,15 +61,15 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({
                                     result.vulnerability_count > 0 && (
                                         <div
                                             key={result.package.name}
-                                            className="card bg-base-100 border border-base-200 shadow-sm hover:shadow-md transition-all duration-300"
+                                            className=" hover:shadow-lg transition-all duration-300"
                                         >
                                             <div className="card-body p-0">
-                                                <div className="p-4 border-b border-base-200 bg-base-200/30 flex items-center justify-between">
-                                                    <h4 className="font-bold text-lg flex items-center gap-2">
-                                                        <Package className="h-5 w-5 text-base-content/70" />
+                                                <div className="p-4 border-b bg-primary/10 border-base-content/10 flex items-center justify-between rounded-t-2xl">
+                                                    <h4 className="font-bold text-lg flex items-center gap-2 text-primary">
+                                                        <Package className="h-5 w-5 text-primary" />
                                                         {result.package.name}
                                                     </h4>
-                                                    <span className="badge badge-error gap-1 font-medium">
+                                                    <span className="badge text-error border-none gap-1 bg-base/10 font-medium">
                                                         {result.vulnerability_count} issues
                                                     </span>
                                                 </div>

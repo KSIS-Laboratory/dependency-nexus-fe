@@ -8,7 +8,6 @@ import { Hero } from "@/components/Hero";
 import { LoginCard } from "@/components/LoginCard";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ROUTES } from "@/lib/constants";
-
 export default function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -37,7 +36,7 @@ export default function Home() {
       } catch (error) {
         console.error("Failed to get current user:", error);
       }
-      
+
       setIsChecking(false);
     };
 
@@ -53,24 +52,30 @@ export default function Home() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-base-200 font-sans">
-      <div className="absolute top-4 right-4">
+    <div className="min-h-screen flex items-center justify-center bg-base-200 relative overflow-hidden">
+      {/* Decorative Elements */}
+      <div className="absolute top-20 left-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute bottom-20 right-20 w-80 h-80 bg-secondary/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+
+      {/* Theme Toggle */}
+      <div className="absolute top-4 right-4 z-10">
         <ThemeToggle />
       </div>
-      
-      <main className="flex w-full max-w-md flex-col items-center gap-8 px-6 py-16">
+
+      <main className="relative z-10 flex w-full max-w-md flex-col items-center gap-8 px-6 py-16">
         <Hero
           title="Dependency Nexus"
-          subtitle="Analyze and manage your project dependencies"
+          subtitle="Analyze and visualize your project dependencies"
         />
-        
+
         {error && (
-          <div role="alert" className="alert alert-error w-full">
-            <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            <span>{error}</span>
+          <div role="alert" className="alert alert-error w-full animate-slide-up">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-sm font-medium">{error}</span>
           </div>
         )}
-        
         <LoginCard onLogin={handleGitHubLogin} />
       </main>
     </div>

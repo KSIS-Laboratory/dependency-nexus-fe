@@ -2,9 +2,14 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
-import { Loader2, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
+import { VisualizationLoadingOverlay } from "@/components/VisualizationLoadingOverlay";
 import { API_URL, API_ENDPOINTS } from "@/lib/constants";
 import { GraphLegend } from "@/components/GraphLegend";
+import { KNOWLEDGE_GRAPH_QUERY, KNOWLEDGE_GRAPH_DEFAULT_QUERY, KNOWLEDGE_GRAPH_REPO_QUERY } from "@/lib/graph-queries";
+import { VulnerabilityDetailModal } from "@/components/VulnerabilityDetailModal";
+
+import { RepositorySelector } from "./RepositorySelector";
 
 interface KnowledgeGraphProps {
     width?: number;
@@ -32,10 +37,18 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     userName,
 }) => {
     const svgRef = useRef<SVGSVGElement>(null);
+
     const [nodes, setNodes] = useState<GraphNode[]>([]);
     const [links, setLinks] = useState<GraphLink[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
+
+    // Vulnerability modal state
+    const [selectedVulnId, setSelectedVulnId] = useState<string | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+
 
     const processGraphData = (results: any[]) => {
         const uniqueNodes = new Map<string, GraphNode>();
@@ -49,6 +62,8 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
                         id: nodeData.elementId,
                         labels: nodeData.labels,
                         properties: nodeData.properties,
+                        x: width / 2 + (Math.random() - 0.5) * 200, // Initial random spread
+                        y: height / 2 + (Math.random() - 0.5) * 200,
                     });
                 }
             });
@@ -64,6 +79,31 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
             }
         });
 
+        // Add a fixed center node anchor
+        const centerNodeId = "center-anchor";
+        const centerNode: GraphNode = {
+            id: centerNodeId,
+            labels: ["Anchor"],
+            properties: { name: "Center" },
+            fx: width / 2,
+            fy: height / 2,
+            x: width / 2,
+            y: height / 2,
+        };
+        uniqueNodes.set(centerNodeId, centerNode);
+
+        // Connect only Repository nodes to the center anchor
+        uniqueNodes.forEach((node) => {
+            if (node.id !== centerNodeId && node.labels.includes("Repository")) {
+                uniqueLinks.set(`anchor-${node.id}`, {
+                    id: `anchor-${node.id}`,
+                    type: "ANCHOR",
+                    source: centerNodeId,
+                    target: node.id,
+                });
+            }
+        });
+
         setNodes(Array.from(uniqueNodes.values()));
         setLinks(Array.from(uniqueLinks.values()));
     };
@@ -71,16 +111,16 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
         setLoading(true);
         setError(null);
         try {
-            const cypherQuery = userName
-                ? `
-                  MATCH (s:Scan {scanned_by: $userName})-[r1]-(n)
-                  RETURN s as n, r1 as r, n as m
-                  UNION
-                  MATCH (s:Scan {scanned_by: $userName})-[r1]-(n)-[r2]-(o)
-                  RETURN n, r2 as r, o as m
-                  LIMIT 300
-                  `
-                : "MATCH (n)-[r]->(m) RETURN n, r, m LIMIT 300";
+            let cypherQuery = KNOWLEDGE_GRAPH_DEFAULT_QUERY;
+            let parameters: any = undefined;
+
+            if (selectedRepos.length > 0) {
+                cypherQuery = KNOWLEDGE_GRAPH_REPO_QUERY;
+                parameters = { repoNames: selectedRepos };
+            } else if (userName) {
+                cypherQuery = KNOWLEDGE_GRAPH_QUERY;
+                parameters = { userName };
+            }
 
             const response = await fetch(
                 `${API_URL}${API_ENDPOINTS.CHATBOT.KNOWLEDGE_QUERY}`,
@@ -91,7 +131,7 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
                     },
                     body: JSON.stringify({
                         cypher_query: cypherQuery,
-                        parameters: userName ? { userName } : undefined,
+                        parameters,
                     }),
                 }
             );
@@ -111,14 +151,26 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     };
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        if (selectedRepos.length > 0) {
+            fetchData();
+        } else {
+            // Clear data when no repos selected
+            setNodes([]);
+            setLinks([]);
+            setLoading(false);
+        }
+    }, [selectedRepos]);
 
     useEffect(() => {
         if (!svgRef.current || nodes.length === 0) return;
 
         const svg = d3.select(svgRef.current);
         svg.selectAll("*").remove(); // Clear previous render
+
+        // Get actual dimensions from container
+        const rect = svgRef.current.getBoundingClientRect();
+        const actualWidth = rect.width || width;
+        const actualHeight = rect.height || height;
 
         const g = svg.append("g");
 
@@ -135,6 +187,8 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
         // Simulation
         const simulation = d3
             .forceSimulation<GraphNode>(nodes)
+            .alphaDecay(0.01) // Slower decay for smoother settling
+            .velocityDecay(0.4) // Standard friction
             .force(
                 "link",
                 d3
@@ -143,8 +197,8 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
                     .distance(100)
             )
             .force("charge", d3.forceManyBody().strength(-300))
-            .force("center", d3.forceCenter(width / 2, height / 2))
-            .force("collide", d3.forceCollide().radius(50));
+            .force("center", d3.forceCenter(actualWidth / 2, actualHeight / 2))
+            .force("collide", d3.forceCollide().radius(50).iterations(2));
 
         // Render links
         const link = g
@@ -164,13 +218,22 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
             .selectAll("g")
             .data(nodes)
             .join("g")
+            .style("cursor", "pointer")
             .call(
                 d3
                     .drag<any, GraphNode>()
                     .on("start", dragstarted)
                     .on("drag", dragged)
                     .on("end", dragended)
-            );
+            )
+            .on("click", (event, d) => {
+                // Open modal for vulnerability nodes
+                if (d.labels.includes("Vulnerability") && d.properties.id) {
+                    event.stopPropagation();
+                    setSelectedVulnId(d.properties.id);
+                    setIsModalOpen(true);
+                }
+            });
 
         // Node circles
         node
@@ -178,18 +241,30 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
             .attr("r", 20)
             .attr("fill", (d) => getNodeColor(d.labels));
 
-        // Node labels
+        // Node labels - get theme color from CSS variable
+        const computedStyle = getComputedStyle(document.documentElement);
+        const baseContentColor = computedStyle.getPropertyValue('--bc').trim();
+        // DaisyUI uses oklch format, convert to usable color
+        const textColor = baseContentColor ? `oklch(${baseContentColor})` : 'currentColor';
+
         node
             .append("text")
             .text((d) => getNodeLabel(d))
             .attr("x", 25)
             .attr("y", 5)
             .style("font-size", "14px")
-            .style("fill", "#000000")
+            .style("fill", textColor)
             .style("font-weight", "600")
             .style("stroke", "none")
-            .style("pointer-events", "none");
-
+            .style("pointer-events", "none")
+            .on("click", (event, d) => {
+                // Open modal for vulnerability nodes
+                if (d.labels.includes("Vulnerability") && d.properties.id) {
+                    event.stopPropagation();
+                    setSelectedVulnId(d.properties.id);
+                    setIsModalOpen(true);
+                }
+            });
         simulation.on("tick", () => {
             link
                 .attr("x1", (d) => (d.source as GraphNode).x!)
@@ -221,7 +296,7 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     const getNodeColor = (labels: string[]) => {
         if (labels.includes("Repository")) return "#ef4444"; // Red
         if (labels.includes("Package")) return "#3b82f6"; // Blue
-        if (labels.includes("Vulnerability")) return "#eab308"; // Yellow
+        if (labels.includes("Vulnerability")) return "#eab308"; // Yellow (Moderate)
         if (labels.includes("Scan")) return "#10b981"; // Green
         return "#6b7280"; // Gray
     };
@@ -237,44 +312,91 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
         return node.id;
     };
 
+    // Show empty state when no repos selected
+    if (nodes.length === 0 && !loading && selectedRepos.length === 0) {
+        return (
+            <div className="relative h-full flex flex-col items-center justify-center bg-base-100 rounded-lg p-8">
+                {/* Controls - Keep dropdown accessible */}
+                <div className="absolute top-4 right-4 z-10">
+                    <RepositorySelector
+                        selectedRepos={selectedRepos}
+                        onSelectionChange={setSelectedRepos}
+                    />
+                </div>
+
+                {/* Prompt Message */}
+                <div className="text-center">
+                    <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center">
+                        <svg className="w-10 h-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                    </div>
+                    <h3 className="text-xl font-semibold text-base-content mb-2">Select a Repository</h3>
+                    <p className="text-base-content/60 max-w-sm">Choose one or more repositories from the dropdown above to visualize the knowledge graph.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="relative border rounded-lg overflow-hidden bg-white shadow-sm">
+        <div className="relative h-full overflow-hidden bg-base-100 rounded-lg">
+            {/* Controls Bar */}
             <div className="absolute top-4 right-4 z-10 flex gap-2">
+                <RepositorySelector
+                    selectedRepos={selectedRepos}
+                    onSelectionChange={setSelectedRepos}
+                />
                 <button
                     onClick={fetchData}
-                    className="btn btn-sm btn-ghost btn-circle bg-white/80 hover:bg-white"
+                    className="btn btn-sm btn-circle bg-base-100 shadow-md border-base-300 hover:bg-base-200 transition-all"
                     title="Refresh Graph"
                 >
                     <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
                 </button>
             </div>
 
-            {loading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-white/50 z-20">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                </div>
-            )}
+            {/* Loading Overlay */}
+            {loading && <VisualizationLoadingOverlay message="Loading graph data..." />}
 
+            {/* Error Overlay */}
             {error && (
-                <div className="absolute inset-0 flex items-center justify-center bg-white/90 z-20">
-                    <div className="text-error text-center p-4">
-                        <p className="font-bold">Error loading graph</p>
-                        <p className="text-sm">{error}</p>
-                        <button onClick={fetchData} className="btn btn-sm btn-primary mt-4">
-                            Retry
-                        </button>
+                <div className="absolute inset-0 flex items-center justify-center bg-base-100/95 z-20">
+                    <div className="card bg-error/10 border border-error/20 max-w-md">
+                        <div className="card-body items-center text-center gap-3">
+                            <div className="w-12 h-12 rounded-full bg-error/20 flex items-center justify-center">
+                                <svg className="w-6 h-6 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <h3 className="font-semibold text-error">Error Loading Graph</h3>
+                            <p className="text-sm text-base-content/70">{error}</p>
+                            <button onClick={fetchData} className="btn btn-sm btn-primary mt-2">
+                                Try Again
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
 
-            <svg ref={svgRef} width={width} height={height} className="cursor-move bg-slate-50" />
+            {/* Graph Canvas */}
+            <svg ref={svgRef} className="w-full h-full cursor-move bg-base-200/30" />
 
+            {/* Legend */}
             <GraphLegend items={[
                 { label: "Repository", color: "#ef4444" },
                 { label: "Package", color: "#3b82f6" },
                 { label: "Vulnerability", color: "#eab308" },
                 { label: "Scan", color: "#10b981" }
             ]} className="right-4" />
+
+            {/* Vulnerability Detail Modal */}
+            {selectedVulnId && (
+                <VulnerabilityDetailModal
+                    vulnId={selectedVulnId}
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                />
+            )}
         </div>
     );
 };

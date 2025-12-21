@@ -9,7 +9,7 @@ import { ErrorMessage } from "@/components/ErrorMessage";
 import { useAuth } from "@/hooks/useAuth";
 import { useRepositories } from "@/hooks/useRepositories";
 import { VulnerabilityAPIService } from "@/lib/vulnerability";
-import { LogOut, ShieldAlert } from "lucide-react";
+import { ShieldAlert } from "lucide-react";
 import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { DashboardStatsGrid } from "@/components/dashboard/DashboardStatsGrid";
 import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard";
@@ -26,12 +26,12 @@ import type {
 
 export default function Dashboard() {
   const router = useRouter();
-  const { isAuthenticated, isLoading: authLoading, githubToken, jwtToken, logout } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, githubToken, jwtToken} = useAuth();
   const { repositories, isLoading: reposLoading, error: repoError } = useRepositories(githubToken);
   const [user, setUser] = useState<User | null>(null);
   const [userLoading, setUserLoading] = useState(true);
   const [repoInsights, setRepoInsights] = useState<Record<string, RepositoryScanSummary>>({});
-  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [insightsLoading, setInsightsLoading] = useState(true);
   const [insightsError, setInsightsError] = useState<string | null>(null);
   const [refreshCounter, setRefreshCounter] = useState(0);
 
@@ -191,7 +191,9 @@ export default function Dashboard() {
   const handleNavigateToRepositories = () => {
     router.push("/repositories");
   };
-
+  const handleNavigateToVisualization = () => {
+    router.push("/visualization");
+  };
   const handleViewRepository = (fullName: string) => {
     router.push(`/repositories/${fullName}/dependencies`);
   };
@@ -212,13 +214,6 @@ export default function Dashboard() {
         <h1 className="text-xl font-bold text-base-content">
           Dependency Nexus
         </h1>
-        <button
-          onClick={() => logout()}
-          className="btn btn-outline btn-error gap-2 ml-auto"
-        >
-          <LogOut className="h-4 w-4" />
-          Logout
-        </button>
       </PageHeader>
 
       <main className="container mx-auto max-w-7xl p-4 sm:p-6 lg:p-8 space-y-8">
@@ -226,13 +221,13 @@ export default function Dashboard() {
           userName={user?.username ?? "team"}
           onRefresh={handleRefreshInsights}
           onViewRepositories={handleNavigateToRepositories}
-          onViewGraph={() => router.push("/knowledge-graph")}
+          onViewGraph={handleNavigateToVisualization}
         />
 
         {insightsError && (
-          <div className="alert alert-warning shadow-lg">
+          <div role="alert" className="alert alert-warning animate-slide-up">
             <ShieldAlert className="h-5 w-5" />
-            <span>{insightsError}</span>
+            <span className="text-sm font-medium">{insightsError}</span>
           </div>
         )}
 
@@ -240,10 +235,10 @@ export default function Dashboard() {
 
         <section className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <RecentActivityCard activity={recentActivity} />
+            <RecentActivityCard activities={recentActivity} onViewAll={handleNavigateToRepositories} onViewRepository={handleViewRepository} />
           </div>
           <div className="lg:col-span-1">
-            <RiskDistributionCard buckets={riskBuckets} />
+            <RiskDistributionCard riskBuckets={riskBuckets} />
           </div>
         </section>
 

@@ -7,47 +7,63 @@ interface DashboardStatsGridProps {
 }
 
 export function DashboardStatsGrid({ stats }: Readonly<DashboardStatsGridProps>) {
+  const statItems = [
+    {
+      icon: ShieldCheck,
+      title: "Total Repositories",
+      value: stats.repoCount,
+      desc: "Connected to GitHub",
+      iconBg: "bg-primary",
+    },
+    {
+      icon: Activity,
+      title: "Monitored",
+      value: stats.scannedCount,
+      desc: "Active scans",
+      iconBg: "bg-secondary",
+    },
+    {
+      icon: ShieldAlert,
+      title: "Vulnerabilities",
+      value: stats.totalVulnerabilities,
+      desc: "Across latest scans",
+      iconBg: "bg-warning",
+      valueColor: stats.totalVulnerabilities > 0 ? "text-warning" : "text-success",
+    },
+    {
+      icon: Clock,
+      title: "Last Scan",
+      value: stats.lastScan ? formatRelativeTime(stats.lastScan) : "N/A",
+      desc: stats.lastScan ? formatDateTime(stats.lastScan) : "No scans yet",
+      iconBg: "bg-info",
+      isText: true,
+    },
+  ];
+
   return (
-    <div className="stats stats-vertical lg:stats-horizontal shadow-xl bg-base-100 w-full border border-base-200">
-      <div className="stat">
-        <div className="stat-figure text-primary">
-          <ShieldCheck className="inline-block w-8 h-8 stroke-current" />
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-up">
+      {statItems.map((item, index) => (
+        <div
+          key={item.title}
+          className="card bg-base-100 shadow-md hover:shadow-lg transition-shadow"
+          style={{ animationDelay: `${index * 0.05}s` }}
+        >
+          <div className="card-body p-5">
+            <div className="flex items-start justify-between mb-4">
+              <div className={`p-3 rounded-xl ${item.iconBg} shadow-sm`}>
+                <item.icon className="h-5 w-5 text-base-100" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-base-content/60">{item.title}</p>
+              <p className={`${item.isText ? 'text-lg' : 'text-3xl'} font-bold ${item.valueColor || 'text-base-content'}`}>
+                {item.value}
+              </p>
+              <p className="text-xs text-base-content/50">{item.desc}</p>
+            </div>
+          </div>
         </div>
-        <div className="stat-title">Total Repositories</div>
-        <div className="stat-value text-primary">{stats.repoCount}</div>
-        <div className="stat-desc">Connected to GitHub</div>
-      </div>
-
-      <div className="stat">
-        <div className="stat-figure text-secondary">
-          <Activity className="inline-block w-8 h-8 stroke-current" />
-        </div>
-        <div className="stat-title">Monitored</div>
-        <div className="stat-value text-secondary">{stats.scannedCount}</div>
-        <div className="stat-desc">Active scans</div>
-      </div>
-
-      <div className="stat">
-        <div className="stat-figure text-error">
-          <ShieldAlert className="inline-block w-8 h-8 stroke-current" />
-        </div>
-        <div className="stat-title">Vulnerabilities</div>
-        <div className="stat-value text-error">{stats.totalVulnerabilities}</div>
-        <div className="stat-desc">Across latest scans</div>
-      </div>
-
-      <div className="stat">
-        <div className="stat-figure text-info">
-          <Clock className="inline-block w-8 h-8 stroke-current" />
-        </div>
-        <div className="stat-title">Last Scan</div>
-        <div className="stat-value text-lg">
-          {stats.lastScan ? formatRelativeTime(stats.lastScan) : "N/A"}
-        </div>
-        <div className="stat-desc">
-          {stats.lastScan ? formatDateTime(stats.lastScan) : "No scans yet"}
-        </div>
-      </div>
+      ))}
     </div>
   );
 }

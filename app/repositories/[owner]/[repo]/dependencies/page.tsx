@@ -88,8 +88,13 @@ export default function DependenciesPage() {
   // Manual vulnerability scan handler with smart caching
   const handleVulnerabilityScan = async () => {
     if (analysis && jwtToken) {
-      const allPackages = Object.entries(analysis.dependencies || {})
-        .filter(([, deps]) => !isUnsupportedDependencyFile(deps))
+      // Get all valid dependency entries
+      const validEntries = Object.entries(analysis.dependencies || {})
+        .filter(([, deps]) => !isUnsupportedDependencyFile(deps));
+
+      console.log("📂 Scanning dependency files:", validEntries.map(([name]) => name));
+
+      const allPackages = validEntries
         .flatMap(([filename, deps]) =>
           VulnerabilityAPIService.convertDependenciesToPackageQueries(deps, filename)
         );
@@ -126,34 +131,42 @@ export default function DependenciesPage() {
         } finally {
           setLocalIsScanning(false);
         }
+      } else {
+        setLocalError("No valid packages found to scan in the detected dependency files.");
       }
     }
   };
 
-  const handleViewVersion = async (versionId: string) => {
+  const handleViewVersion = async (version: any) => {
     if (!jwtToken) return;
     setLocalIsScanning(true);
     setLocalError(null);
     try {
-      const detail = await VulnerabilityAPIService.getScanDetail(
+      // Convert DependencyItem[] to PackageQuery[]
+      const packages = version.dependencies.map((dep: any) => ({
+        name: dep.name,
+        version: dep.version,
+        ecosystem: dep.package_manager
+      }));
+
+      // Scan these packages (Read-only scan, does not create new history)
+      const result = await VulnerabilityAPIService.scanPackages(
         jwtToken,
-        `${owner}/${repo}`,
-        versionId
+        packages
       );
 
-      if (detail?.scan_result) {
-        setLocalVulnerabilities(detail.scan_result);
-        setScanFromCache(true);
-        setViewingHistoryVersion(versionId);
+      setLocalVulnerabilities(result);
+      // We don't set scanFromCache because this is a fresh "in-memory" scan of old deps
+      setScanFromCache(false);
+      setViewingHistoryVersion(version.version_id);
 
-        // Switch to security tab to view details
-        setActiveTab('security');
+      // Switch to security tab to view details
+      setActiveTab('security');
 
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    } catch (err) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err: any) {
       console.error("Failed to load version", err);
-      setLocalError("Failed to load historical version");
+      setLocalError(err.message || "Failed to load historical version");
     } finally {
       setLocalIsScanning(false);
     }
@@ -192,21 +205,21 @@ export default function DependenciesPage() {
 
 
   return (
-    <div className="min-h-screen bg-base-200/50 pb-20">
+    <div className="page-bg-mesh pb-20">
       <PageHeader user={user} showUser>
         <div className="flex items-center gap-4">
           <Link
             href={`/repositories/${owner}`}
-            className="btn btn-ghost btn-circle btn-sm hover:bg-base-content/10"
+            className="p-2 rounded-lg hover:bg-primary/10 transition-colors"
             aria-label="Back to owner repositories"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-5 w-5 text-primary" />
           </Link>
-          <div className="flex items-center gap-2 text-sm breadcrumbs text-base-content/60">
+          <div className="flex items-center gap-2 text-sm breadcrumbs text-base-content">
             <ul>
-              <li><Link href="/repositories">Repositories</Link></li>
-              <li><Link href={`/repositories/${owner}`}>{owner}</Link></li>
-              <li className="font-semibold text-base-content">{repo}</li>
+              <li><Link href="/repositories" className="hover:text-primary">Repositories</Link></li>
+              <li><Link href={`/repositories/${owner}`} className="hover:text-primary">{owner}</Link></li>
+              <li className="font-semibold text-primary">{repo}</li>
             </ul>
           </div>
         </div>
@@ -214,16 +227,16 @@ export default function DependenciesPage() {
 
       <main className="container mx-auto px-4 py-8 sm:px-6 lg:px-8 max-w-7xl">
         {/* Header Section */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8 animate-fade-in">
           <div className="flex items-start gap-4">
-            <div className="p-4 bg-linear-to-br from-primary/10 to-primary/5 rounded-2xl text-primary shadow-sm ring-1 ring-base-300">
+            <div className="p-4 bg-linear-to-br from-primary to-secondary rounded-2xl text-white shadow-sm">
               <Package className="h-8 w-8" />
             </div>
             <div>
-              <h2 className="text-3xl font-bold text-base-content tracking-tight mb-1">
+              <h2 className="text-3xl font-bold text-primary tracking-tight mb-1">
                 {repo}
               </h2>
-              <p className="text-base-content/70 flex items-center gap-2 font-medium">
+              <p className="text-base-content flex items-center gap-2 font-medium">
                 <Github className="h-4 w-4" />
                 {owner}
               </p>

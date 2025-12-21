@@ -14,13 +14,16 @@ export function ProjectHealthSection({
   onViewAll,
 }: Readonly<ProjectHealthSectionProps>) {
   return (
-    <section>
+    <section className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-xl font-bold">Project Health</h3>
-          <p className="text-base-content/70 text-sm">Quick access to your most active repositories</p>
+          <h3 className="text-xl font-bold text-base-content">Project Health</h3>
+          <p className="text-base-content/60 text-sm">Quick access to your most active repositories</p>
         </div>
-        <button className="btn btn-primary btn-outline btn-sm" onClick={onViewAll}>
+        <button
+          className="btn btn-outline btn-primary btn-sm gap-2"
+          onClick={onViewAll}
+        >
           View all repositories
           <ArrowRight className="h-4 w-4" />
         </button>
@@ -28,19 +31,23 @@ export function ProjectHealthSection({
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {projects.length > 0 ? (
-          projects.map(({ repo, summary }) => (
-            <div key={repo.id} className="card card-compact bg-base-100 shadow-md hover:shadow-lg transition-shadow border border-base-200">
-              <div className="card-body">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                      <FolderGit2 className="h-5 w-5" />
+          projects.map(({ repo, summary }, index) => (
+            <div
+              key={repo.id}
+              className="card bg-base-100 shadow-md hover:shadow-lg transition-shadow"
+              style={{ animationDelay: `${(index + 1) * 0.05}s` }}
+            >
+              <div className="card-body p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-linear-to-br from-primary to-secondary rounded-xl text-primary-content shadow-sm group-hover:scale-110 transition-transform duration-300">
+                      <FolderGit2 className="h-4 w-4" />
                     </div>
                     <div>
-                      <h4 className="font-bold text-base truncate max-w-[180px]" title={repo.name}>
+                      <h4 className="font-bold text-base-content truncate max-w-40" title={repo.name}>
                         {repo.name}
                       </h4>
-                      <p className="text-xs text-base-content/60 truncate max-w-[180px]">
+                      <p className="text-xs text-base-content/60 truncate max-w-40">
                         {repo.full_name}
                       </p>
                     </div>
@@ -52,7 +59,7 @@ export function ProjectHealthSection({
 
                 <div className="divider my-1"></div>
 
-                <div className="flex items-center justify-between text-xs text-base-content/70">
+                <div className="flex items-center justify-between text-xs text-base-content/60 mb-3">
                   <div className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
                     <span>
@@ -66,22 +73,22 @@ export function ProjectHealthSection({
                   </span>
                 </div>
 
-                <div className="card-actions justify-end mt-2">
-                  <button
-                    onClick={() => onViewRepository(repo.full_name)}
-                    className="btn btn-xs btn-outline w-full btn-primary"
-                  >
-                    View Details
-                  </button>
-                </div>
+                <button
+                  onClick={() => onViewRepository(repo.full_name)}
+                  className="btn btn-outline btn-sm w-full"
+                >
+                  View Details
+                </button>
               </div>
             </div>
           ))
         ) : (
-          <div className="col-span-full rounded-xl border border-dashed border-base-300 p-12 text-center text-base-content/60 bg-base-50">
-            <FolderGit2 className="h-12 w-12 mx-auto mb-4 opacity-20" />
-            <p className="font-medium">No projects found</p>
-            <p className="text-sm mt-1">Connect repositories to start visualizing their health.</p>
+          <div className="col-span-full card bg-base-100 border-2 border-dashed border-base-300">
+            <div className="card-body items-center text-center py-12">
+              <FolderGit2 className="h-12 w-12 text-base-content/30" />
+              <p className="font-medium text-base-content">No projects found</p>
+              <p className="text-sm text-base-content/60">Connect repositories to start visualizing their health.</p>
+            </div>
           </div>
         )}
       </div>

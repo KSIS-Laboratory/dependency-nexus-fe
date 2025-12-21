@@ -53,7 +53,7 @@ export default function RepositoriesPage() {
 
   const handleAskAI = (repoName: string) => {
     triggerChatbotContext({
-      message: `Analyze repository ${repoName}`,
+      message: `วิเคราะห์ช่องโหว่ใน ${repoName} แบบสั้นๆ`,
       autoSend: true,
     });
   };
@@ -78,12 +78,12 @@ export default function RepositoriesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-base-200/50">
+    <div className="min-h-screen bg-base-200">
       <PageHeader user={user} showUser>
         <div className="flex items-center gap-4">
           <Link
             href="/dashboard"
-            className="btn btn-ghost btn-circle btn-sm hover:bg-base-content/10"
+            className="btn btn-ghost btn-circle btn-sm"
             aria-label="Back to dashboard"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -93,13 +93,13 @@ export default function RepositoriesPage() {
       </PageHeader>
 
       <main className="container mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 animate-fade-in">
           <div>
             <h2 className="text-3xl font-bold text-base-content flex items-center gap-3">
               <span>All Repositories</span>
-              <span className="badge badge-lg badge-primary badge-outline font-mono">{repositories.length}</span>
+              <span className="badge badge-primary">{repositories.length}</span>
             </h2>
-            <p className="mt-2 text-base-content/70">
+            <p className="mt-2 text-base-content/60">
               Manage and analyze your GitHub repositories
             </p>
           </div>
@@ -114,34 +114,37 @@ export default function RepositoriesPage() {
 
         {filteredRepositories.length > 0 ? (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredRepositories.map((repo) => (
-              <RepositoryCard
-                key={repo.id}
-                repository={repo}
-                onClick={() => handleAnalyze(repo.full_name)}
-                onAskAI={() => handleAskAI(repo.name)}
-              />
+            {filteredRepositories.map((repo, index) => (
+              <div key={repo.id} className="animate-slide-up" style={{ animationDelay: `${index * 0.03}s` }}>
+                <RepositoryCard
+                  repository={repo}
+                  onClick={() => handleAnalyze(repo.full_name)}
+                  onAskAI={() => handleAskAI(repo.name)}
+                />
+              </div>
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-center bg-base-100/50 backdrop-blur-sm rounded-3xl border border-base-200/50 border-dashed">
-            <div className="bg-base-200 p-6 rounded-full mb-6 animate-pulse">
-              <FolderGit2 className="h-10 w-10 text-base-content/30" />
+          <div className="card bg-base-100 shadow-md">
+            <div className="card-body items-center text-center py-20">
+              <div className="bg-base-200 p-6 rounded-full mb-6">
+                <FolderGit2 className="h-10 w-10 text-base-content/60" />
+              </div>
+              <h3 className="text-xl font-bold text-base-content mb-2">No repositories found</h3>
+              <p className="text-base-content/60 max-w-xs">
+                {searchQuery
+                  ? `No matches for "${searchQuery}". Try a different search term.`
+                  : "You don't have any repositories connected yet."}
+              </p>
+              {searchQuery && (
+                <button
+                  className="btn btn-outline mt-6"
+                  onClick={() => setSearchQuery("")}
+                >
+                  Clear search
+                </button>
+              )}
             </div>
-            <h3 className="text-xl font-bold mb-2">No repositories found</h3>
-            <p className="text-base-content/60 max-w-xs mx-auto">
-              {searchQuery
-                ? `No matches for "${searchQuery}". Try a different search term.`
-                : "You don't have any repositories connected yet."}
-            </p>
-            {searchQuery && (
-              <button
-                className="btn btn-primary btn-outline mt-6"
-                onClick={() => setSearchQuery("")}
-              >
-                Clear search
-              </button>
-            )}
           </div>
         )}
       </main>
