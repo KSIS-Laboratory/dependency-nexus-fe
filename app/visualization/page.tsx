@@ -51,12 +51,12 @@ export default function KnowledgeGraphPage() {
             id: 'force',
             label: 'Force Graph',
             shortLabel: 'Force',
-            icon: Network,
+            icon: Share2,
             description: 'Interactive force-directed graph showing package dependencies and their relationships.',
             tips: [
                 'Drag nodes to rearrange the layout',
                 'Scroll to zoom in/out',
-                'Click on a node to see details',
+                'Click on a vulnerability node to view details',
                 'Color indicates vulnerability severity'
             ]
         },
@@ -64,10 +64,11 @@ export default function KnowledgeGraphPage() {
             id: 'tree',
             label: 'Tree View',
             shortLabel: 'Tree',
-            icon: GitMerge,
+            icon: Network,
             description: 'Hierarchical tree visualization of dependency chains from root to leaves.',
             tips: [
                 'Click nodes to expand/collapse branches',
+                'Click on a vulnerability node to view details',
                 'Shows dependency depth clearly',
                 'Great for understanding package hierarchy',
                 'Hover for vulnerability details'
@@ -77,10 +78,11 @@ export default function KnowledgeGraphPage() {
             id: 'hierarchical',
             label: 'Hierarchical Edge Bundling',
             shortLabel: 'Radial',
-            icon: Share2,
+            icon: GitMerge,
             description: 'Circular layout with bundled edges to show complex relationships clearly.',
             tips: [
                 'Hover over nodes to highlight connections',
+                'Click on a vulnerability node to view details',
                 'Bundled edges reduce visual clutter',
                 'Great for seeing overall structure',
                 'Colors indicate vulnerability severity'

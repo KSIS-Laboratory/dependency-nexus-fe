@@ -53,9 +53,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-base-200 relative overflow-hidden">
-      {/* Decorative Elements */}
-      <div className="absolute top-20 left-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl animate-pulse" />
-      <div className="absolute bottom-20 right-20 w-80 h-80 bg-secondary/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
 
       {/* Theme Toggle */}
       <div className="absolute top-4 right-4 z-10">

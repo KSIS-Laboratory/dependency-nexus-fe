@@ -8,8 +8,10 @@ import { API_URL, API_ENDPOINTS } from "@/lib/constants";
 import { GraphLegend } from "@/components/GraphLegend";
 import { KNOWLEDGE_GRAPH_QUERY, KNOWLEDGE_GRAPH_DEFAULT_QUERY, KNOWLEDGE_GRAPH_REPO_QUERY } from "@/lib/graph-queries";
 import { VulnerabilityDetailModal } from "@/components/VulnerabilityDetailModal";
+import { getSeverityHexColor, getNodeTypeHexColor, FULL_LEGEND_ITEMS } from "@/lib/severity";
 
 import { RepositorySelector } from "./RepositorySelector";
+import { RepositoryEmptyState } from "./RepositoryEmptyState";
 
 interface KnowledgeGraphProps {
     width?: number;
@@ -239,7 +241,7 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
         node
             .append("circle")
             .attr("r", 20)
-            .attr("fill", (d) => getNodeColor(d.labels));
+            .attr("fill", (d) => getNodeColor(d.labels, d.properties));
 
         // Node labels - get theme color from CSS variable
         const computedStyle = getComputedStyle(document.documentElement);
@@ -293,12 +295,17 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
         }
     }, [nodes, links, width, height]);
 
-    const getNodeColor = (labels: string[]) => {
-        if (labels.includes("Repository")) return "#ef4444"; // Red
-        if (labels.includes("Package")) return "#3b82f6"; // Blue
-        if (labels.includes("Vulnerability")) return "#eab308"; // Yellow (Moderate)
-        if (labels.includes("Scan")) return "#10b981"; // Green
-        return "#6b7280"; // Gray
+    const getNodeColor = (labels: string[], properties?: Record<string, any>) => {
+        if (!labels || labels.length === 0) return getNodeTypeHexColor('DEFAULT');
+        if (labels.includes("Anchor")) return 'transparent';
+        if (labels.includes("Repository")) return getNodeTypeHexColor('REPOSITORY');
+        if (labels.includes("Package")) return getNodeTypeHexColor('PACKAGE');
+        if (labels.includes("Vulnerability")) {
+            const severity = properties?.severity || 'UNKNOWN';
+            return getSeverityHexColor(severity);
+        }
+        if (labels.includes("Scan")) return getNodeTypeHexColor('SCAN');
+        return getNodeTypeHexColor('DEFAULT');
     };
 
 
@@ -315,26 +322,17 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     // Show empty state when no repos selected
     if (nodes.length === 0 && !loading && selectedRepos.length === 0) {
         return (
-            <div className="relative h-full flex flex-col items-center justify-center bg-base-100 rounded-lg p-8">
-                {/* Controls - Keep dropdown accessible */}
-                <div className="absolute top-4 right-4 z-10">
-                    <RepositorySelector
-                        selectedRepos={selectedRepos}
-                        onSelectionChange={setSelectedRepos}
-                    />
-                </div>
-
-                {/* Prompt Message */}
-                <div className="text-center">
-                    <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center">
-                        <svg className="w-10 h-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                        </svg>
-                    </div>
-                    <h3 className="text-xl font-semibold text-base-content mb-2">Select a Repository</h3>
-                    <p className="text-base-content/60 max-w-sm">Choose one or more repositories from the dropdown above to visualize the knowledge graph.</p>
-                </div>
-            </div>
+            <RepositoryEmptyState
+                selectedRepos={selectedRepos}
+                onSelectionChange={setSelectedRepos}
+                title="Select a Repository"
+                description="Choose one or more repositories from the dropdown above to visualize the knowledge graph."
+                icon={
+                    <svg className="w-10 h-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                    </svg>
+                }
+            />
         );
     }
 
@@ -346,13 +344,6 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
                     selectedRepos={selectedRepos}
                     onSelectionChange={setSelectedRepos}
                 />
-                <button
-                    onClick={fetchData}
-                    className="btn btn-sm btn-circle bg-base-100 shadow-md border-base-300 hover:bg-base-200 transition-all"
-                    title="Refresh Graph"
-                >
-                    <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-                </button>
             </div>
 
             {/* Loading Overlay */}
@@ -382,12 +373,7 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
             <svg ref={svgRef} className="w-full h-full cursor-move bg-base-200/30" />
 
             {/* Legend */}
-            <GraphLegend items={[
-                { label: "Repository", color: "#ef4444" },
-                { label: "Package", color: "#3b82f6" },
-                { label: "Vulnerability", color: "#eab308" },
-                { label: "Scan", color: "#10b981" }
-            ]} className="right-4" />
+            <GraphLegend items={FULL_LEGEND_ITEMS} className="absolute bottom-4 right-4 z-10" />
 
             {/* Vulnerability Detail Modal */}
             {selectedVulnId && (

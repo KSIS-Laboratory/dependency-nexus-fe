@@ -4,12 +4,14 @@ import React, { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
 import { API_URL, API_ENDPOINTS } from "@/lib/constants";
 import { VisualizationLoadingOverlay } from "@/components/VisualizationLoadingOverlay";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { GraphLegend } from "@/components/GraphLegend";
 import { TREE_DATA_QUERY, COMPARE_REPOS_QUERY } from "@/lib/graph-queries";
 import { VulnerabilityDetailModal } from "@/components/VulnerabilityDetailModal";
+import { SEVERITY_LEGEND_ITEMS, getSeverityHexColor } from "@/lib/severity";
 
 import { RepositorySelector } from "./RepositorySelector";
+import { RepositoryEmptyState } from "./RepositoryEmptyState";
 
 interface HierarchicalEdgeBundlingProps {
     readonly userName?: string;
@@ -228,13 +230,14 @@ export const HierarchicalEdgeBundling: React.FC<HierarchicalEdgeBundlingProps> =
                 const target = d.at(-1);
                 if (target?.data.type === 'vulnerability') {
                     const path = target.data.path || "";
-                    if (path.includes("CRITICAL")) return "#ef4444";
-                    if (path.includes("HIGH")) return "#f97316";
-                    if (path.includes("MODERATE")) return "#eab308";
-                    if (path.includes("LOW")) return "#94a3b8";
-                    return "#9f9fa8"; // Fallback for unknown/none severity
+                    // Extract severity from path like "Vulnerabilities/CRITICAL/CVE-xxx"
+                    if (path.includes("CRITICAL")) return getSeverityHexColor('CRITICAL');
+                    if (path.includes("HIGH")) return getSeverityHexColor('HIGH');
+                    if (path.includes("MODERATE")) return getSeverityHexColor('MODERATE');
+                    if (path.includes("LOW")) return getSeverityHexColor('LOW');
+                    return getSeverityHexColor('UNKNOWN');
                 }
-                return "#ccc";
+                return getSeverityHexColor('UNKNOWN');
             })
             .attr("stroke-width", 1);
 
@@ -259,11 +262,11 @@ export const HierarchicalEdgeBundling: React.FC<HierarchicalEdgeBundlingProps> =
             .attr("fill", d => {
                 if (d.data.type === 'vulnerability') {
                     const path = d.data.path || "";
-                    if (path.includes("CRITICAL")) return "#ef4444";
-                    if (path.includes("HIGH")) return "#f97316";
-                    if (path.includes("MODERATE")) return "#eab308";
-                    if (path.includes("LOW")) return "#3b82f6";
-                    return "#9f9fa8"; // Fallback for unknown/none severity
+                    if (path.includes("CRITICAL")) return getSeverityHexColor('CRITICAL');
+                    if (path.includes("HIGH")) return getSeverityHexColor('HIGH');
+                    if (path.includes("MODERATE")) return getSeverityHexColor('MODERATE');
+                    if (path.includes("LOW")) return getSeverityHexColor('LOW');
+                    return getSeverityHexColor('UNKNOWN');
                 }
                 // Use theme color for repos and packages
                 return themeTextColor;
@@ -362,26 +365,17 @@ export const HierarchicalEdgeBundling: React.FC<HierarchicalEdgeBundlingProps> =
         </div>
     );
     if (!data.length) return (
-        <div className="flex flex-col items-center justify-center h-full bg-base-100 p-8 relative">
-            {/* Controls - Keep dropdown accessible */}
-            <div className="absolute top-4 right-4 z-10">
-                <RepositorySelector
-                    selectedRepos={selectedRepos}
-                    onSelectionChange={setSelectedRepos}
-                />
-            </div>
-
-            {/* Prompt Message */}
-            <div className="text-center">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center">
-                    <svg className="w-10 h-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-                    </svg>
-                </div>
-                <h3 className="text-xl font-semibold text-base-content mb-2">Select a Repository</h3>
-                <p className="text-base-content/60 max-w-sm">Choose one or more repositories from the dropdown above to visualize the radial dependency graph.</p>
-            </div>
-        </div>
+        <RepositoryEmptyState
+            selectedRepos={selectedRepos}
+            onSelectionChange={setSelectedRepos}
+            title="Select a Repository"
+            description="Choose one or more repositories from the dropdown above to visualize the radial dependency graph."
+            icon={
+                <svg className="w-10 h-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                </svg>
+            }
+        />
     );
 
     return (
@@ -393,28 +387,13 @@ export const HierarchicalEdgeBundling: React.FC<HierarchicalEdgeBundlingProps> =
                     selectedRepos={selectedRepos}
                     onSelectionChange={setSelectedRepos}
                 />
-
-                {/* Refresh Button */}
-                <button
-                    onClick={fetchData}
-                    className="btn btn-sm btn-circle bg-base-100 shadow-md border-base-300 hover:bg-base-200 transition-all"
-                    title="Refresh"
-                >
-                    <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-                </button>
             </div>
 
             {/* Radial Graph Canvas */}
             <svg ref={svgRef} className="w-full h-full bg-base-200/30"></svg>
 
             {/* Legend */}
-            <GraphLegend items={[
-                { label: "Critical Severity", color: "#ef4444" },
-                { label: "High Severity", color: "#f97316" },
-                { label: "Moderate Severity", color: "#eab308" },
-                { label: "Low Severity", color: "#3b82f6" },
-                { label: "Unknown / None", color: "#9f9fa8" },
-            ]} />
+            <GraphLegend className="absolute bottom-4 right-4 z-10" items={SEVERITY_LEGEND_ITEMS} />
 
             {/* Vulnerability Detail Modal */}
             {selectedVulnId && (

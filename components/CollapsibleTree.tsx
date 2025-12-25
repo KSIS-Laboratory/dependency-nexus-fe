@@ -8,8 +8,10 @@ import { AlertCircle, RefreshCw } from "lucide-react";
 import { GraphLegend } from "@/components/GraphLegend";
 import { TREE_DATA_QUERY, COMPARE_REPOS_QUERY } from "@/lib/graph-queries";
 import { VulnerabilityDetailModal } from "@/components/VulnerabilityDetailModal";
+import { getSeverityHexColor, SEVERITY_LEGEND_ITEMS } from "@/lib/severity";
 
 import { RepositorySelector } from "./RepositorySelector";
+import { RepositoryEmptyState } from "./RepositoryEmptyState";
 
 interface CollapsibleTreeProps {
     readonly userName?: string;
@@ -127,12 +129,16 @@ export const CollapsibleTree: React.FC<CollapsibleTreeProps> = ({ userName }) =>
                 repoNode.children!.push(pkgNode);
             }
 
+            // Only add vulnerability if it doesn't already exist
             if (row.vuln_id) {
-                pkgNode.children!.push({
-                    name: row.vuln_id,
-                    severity: row.severity || "UNKNOWN",
-                    type: "vulnerability"
-                });
+                const vulnExists = pkgNode.children!.some(c => c.name === row.vuln_id);
+                if (!vulnExists) {
+                    pkgNode.children!.push({
+                        name: row.vuln_id,
+                        severity: row.severity || "UNKNOWN",
+                        type: "vulnerability"
+                    });
+                }
             }
         });
 
@@ -238,12 +244,7 @@ export const CollapsibleTree: React.FC<CollapsibleTreeProps> = ({ userName }) =>
                 .attr("r", 5)
                 .attr("fill", (d) => {
                     if (d.data.type === 'vulnerability') {
-                        const sev = d.data.severity?.toUpperCase() || "";
-                        if (sev.includes("CRITICAL")) return "#ef4444";
-                        if (sev.includes("HIGH")) return "#f97316";
-                        if (sev.includes("MODERATE")) return "#eab308";
-                        if (sev.includes("LOW")) return "#3b82f6";
-                        return "#9ca3af"; // Gray for unknown/no severity
+                        return getSeverityHexColor(d.data.severity || 'UNKNOWN');
                     }
                     return d._children ? "#555" : "#999";
                 })
@@ -268,11 +269,7 @@ export const CollapsibleTree: React.FC<CollapsibleTreeProps> = ({ userName }) =>
             nodeEnter.select("text")
                 .attr("fill", (d) => {
                     if (d.data.type === 'vulnerability') {
-                        const sev = d.data.severity?.toUpperCase() || "";
-                        if (sev.includes("CRITICAL")) return "#ef4444";
-                        if (sev.includes("HIGH")) return "#f97316";
-                        if (sev.includes("MODERATE")) return "#eab308";
-                        if (sev.includes("LOW")) return "#3b82f6";
+                        return getSeverityHexColor(d.data.severity || 'UNKNOWN');
                     }
                     return themeTextColor;
                 });
@@ -286,12 +283,7 @@ export const CollapsibleTree: React.FC<CollapsibleTreeProps> = ({ userName }) =>
             node.select("circle")
                 .attr("fill", (d) => {
                     if (d.data.type === 'vulnerability') {
-                        const sev = d.data.severity?.toUpperCase() || "";
-                        if (sev.includes("CRITICAL")) return "#ef4444";
-                        if (sev.includes("HIGH")) return "#f97316";
-                        if (sev.includes("MODERATE")) return "#eab308";
-                        if (sev.includes("LOW")) return "#3b82f6";
-                        return "#9ca3af"; // Gray for unknown/no severity
+                        return getSeverityHexColor(d.data.severity || 'UNKNOWN');
                     }
                     return d._children ? "#555" : "#999";
                 });
@@ -351,15 +343,6 @@ export const CollapsibleTree: React.FC<CollapsibleTreeProps> = ({ userName }) =>
 
     }, [data]);
 
-    // const handleZoom = (factor: number) => {
-    //     if (!svgRef.current || !zoomRef.current) return;
-    //     d3.select(svgRef.current).transition().call(zoomRef.current.scaleBy, factor);
-    // };
-
-    // const handleReset = () => {
-    //     if (!svgRef.current || !zoomRef.current) return;
-    //     d3.select(svgRef.current).transition().call(zoomRef.current.transform, d3.zoomIdentity);
-    // };
 
     if (loading) return (
         <div className="relative w-full h-full overflow-hidden bg-base-100 rounded-lg">
@@ -375,26 +358,17 @@ export const CollapsibleTree: React.FC<CollapsibleTreeProps> = ({ userName }) =>
         </div>
     );
     if (!data.length) return (
-        <div className="flex flex-col items-center justify-center h-full bg-base-100 p-8 relative">
-            {/* Controls - Keep dropdown accessible */}
-            <div className="absolute top-4 right-4 z-10">
-                <RepositorySelector
-                    selectedRepos={selectedRepos}
-                    onSelectionChange={setSelectedRepos}
-                />
-            </div>
-
-            {/* Prompt Message */}
-            <div className="text-center">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center">
-                    <svg className="w-10 h-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                    </svg>
-                </div>
-                <h3 className="text-xl font-semibold text-base-content mb-2">Select a Repository</h3>
-                <p className="text-base-content/60 max-w-sm">Choose one or more repositories from the dropdown above to visualize their dependency tree.</p>
-            </div>
-        </div>
+        <RepositoryEmptyState
+            selectedRepos={selectedRepos}
+            onSelectionChange={setSelectedRepos}
+            title="Select a Repository"
+            description="Choose one or more repositories from the dropdown above to visualize their dependency tree."
+            icon={
+                <svg className="w-10 h-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                </svg>
+            }
+        />
     );
 
     return (
@@ -406,53 +380,13 @@ export const CollapsibleTree: React.FC<CollapsibleTreeProps> = ({ userName }) =>
                     selectedRepos={selectedRepos}
                     onSelectionChange={setSelectedRepos}
                 />
-
-                {/* Refresh Button */}
-                <button
-                    onClick={fetchData}
-                    className="btn btn-sm btn-circle bg-base-100 shadow-md border-base-300 hover:bg-base-200 transition-all"
-                    title="Refresh"
-                >
-                    <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-                </button>
-
-                {/* Zoom Controls */}
-                {/* <div className="join shadow-md">
-                    <button
-                        className="btn btn-sm join-item bg-base-100 border-base-300 hover:bg-base-200 text-lg font-bold"
-                        onClick={() => handleZoom(1.2)}
-                        title="Zoom In"
-                    >
-                        +
-                    </button>
-                    <button
-                        className="btn btn-sm join-item bg-base-100 border-base-300 hover:bg-base-200 text-lg font-bold"
-                        onClick={() => handleZoom(0.8)}
-                        title="Zoom Out"
-                    >
-                        −
-                    </button>
-                </div>
-                <button
-                    className="btn btn-sm bg-base-100 border-base-300 hover:bg-base-200 shadow-md"
-                    onClick={handleReset}
-                    title="Reset View"
-                >
-                    Reset
-                </button> */}
             </div>
 
             {/* Tree Canvas */}
             <svg ref={svgRef} className="w-full h-full min-h-[600px] bg-base-200/30"></svg>
 
             {/* Legend */}
-            <GraphLegend items={[
-                { label: "Critical Severity", color: "#ef4444" },
-                { label: "High Severity", color: "#f97316" },
-                { label: "Moderate Severity", color: "#eab308" },
-                { label: "Low Severity", color: "#3b82f6" },
-                { label: "Unknown / None", color: "#9ca3af" },
-            ]} />
+            <GraphLegend className="absolute bottom-4 right-4 z-10" items={SEVERITY_LEGEND_ITEMS} />
 
             {/* Vulnerability Detail Modal */}
             {selectedVulnId && (

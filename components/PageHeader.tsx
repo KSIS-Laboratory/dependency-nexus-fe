@@ -14,17 +14,17 @@ interface PageHeaderProps {
     avatar_url?: string;
   } | null;
   readonly showUser?: boolean;
-} 
+}
 
 export function PageHeader({ children, user, showUser = false }: PageHeaderProps) {
   const { logout } = useAuth();
   return (
     <nav className="sticky top-0 z-50 bg-base-100/80 backdrop-blur-md border-b border-base-300">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="relative flex h-16 items-center justify-between">
+        <div className="flex h-16 items-center justify-between gap-4">
           {/* Left Side: Logo and Page Title (children) */}
-          <div className="flex items-center gap-4 text-base-content">
-            <Link href="/dashboard">
+          <div className="flex items-center gap-4 text-base-content min-w-0 shrink">
+            <Link href="/dashboard" className="shrink-0">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -38,26 +38,37 @@ export function PageHeader({ children, user, showUser = false }: PageHeaderProps
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
               </svg>
             </Link>
-            {children}
+            <div className="min-w-0 shrink truncate">
+              {children}
+            </div>
           </div>
 
-          {/* Center: Navigation Links (Absolutely positioned) */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex items-center gap-6">
-            <Link href="/dashboard" className="text-sm font-medium hover:text-primary transition-colors">
+          {/* Center: Navigation Links */}
+          <div className="hidden md:flex items-center gap-4 shrink-0">
+            <Link
+              href="/dashboard"
+              className="text-sm font-medium hover:text-primary transition-colors whitespace-nowrap"
+            >
               Dashboard
             </Link>
-            <span className="text-sm font-medium hover:text-primary transition-colors">|</span>
-            <Link href="/repositories" className="text-sm font-medium hover:text-primary transition-colors">
+            <span className="text-base-content/30">|</span>
+            <Link
+              href="/repositories"
+              className="text-sm font-medium hover:text-primary transition-colors whitespace-nowrap"
+            >
               Repositories
             </Link>
-            <span className="text-sm font-medium hover:text-primary transition-colors">|</span>
-            <Link href="/visualization" className="text-sm font-medium hover:text-primary transition-colors">
+            <span className="text-base-content/30">|</span>
+            <Link
+              href="/visualization"
+              className="text-sm font-medium hover:text-primary transition-colors whitespace-nowrap"
+            >
               Visualize
             </Link>
           </div>
 
           {/* Right Side: Theme Toggle and User Profile */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <ThemeToggle />
             {showUser && user && (
               <div className="flex items-center gap-3 border-l border-base-300 pl-4">
@@ -83,14 +94,16 @@ export function PageHeader({ children, user, showUser = false }: PageHeaderProps
               </div>
             )}
             <button
-            onClick={() => logout()}
-            className="btn btn-error btn-ghost btn-circle"
-          >
-            <LogOut className="h-6 w-6"/>
-          </button>
+              onClick={() => logout()}
+              className="btn btn-error btn-ghost btn-circle"
+              aria-label="Logout"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
           </div>
         </div>
       </div>
     </nav>
   );
 }
+

@@ -23,6 +23,7 @@ import { DependenciesTab } from "@/components/DependenciesTab";
 import { SecurityTab } from "@/components/SecurityTab";
 import { ChatbotWidget } from "@/components/ChatbotWidget";
 import { ScanHistoryPanel } from "@/components/ScanHistoryPanel";
+import { ScanProgressIndicator, ScanStep } from "@/components/ScanProgressIndicator";
 
 const isUnsupportedDependencyFile = (deps: unknown): deps is { raw_content: string } => {
   return typeof deps === "object" && deps !== null && "raw_content" in deps;
@@ -54,6 +55,10 @@ export default function DependenciesPage() {
   const [localIsScanning, setLocalIsScanning] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [viewingHistoryVersion, setViewingHistoryVersion] = useState<string | null>(null);
+
+  // Scan Progress State
+  const [scanStep, setScanStep] = useState<ScanStep>("idle");
+  const [scanMessage, setScanMessage] = useState<string>("");
 
   useEffect(() => {
     const loadUser = async () => {
@@ -105,12 +110,40 @@ export default function DependenciesPage() {
         setScanFromCache(false);
         setViewingHistoryVersion(null);
 
+        // Step 1: Collecting
+        setScanStep("collecting");
+        setScanMessage(`รวบรวม ${allPackages.length} packages จาก ${validEntries.length} ไฟล์...`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         try {
+          // Step 2: Scanning
+          setScanStep("scanning");
+          setScanMessage(`กำลังสแกน ${allPackages.length} packages หาช่องโหว่...`);
+
           // Use smart scan that checks cache first
           const result = await VulnerabilityAPIService.smartScanPackages(
             jwtToken,
             `${owner}/${repo}`,
             allPackages
+          );
+
+          // Step 3: Indexing (if not from cache)
+          if (!result.fromCache) {
+            setScanStep("indexing");
+            setScanMessage("กำลัง index ข้อมูลไปยัง Knowledge Graph...");
+            await new Promise(resolve => setTimeout(resolve, 800));
+
+            // Step 4: Vectorizing
+            setScanStep("vectorizing");
+            setScanMessage("กำลัง sync ไปยัง Vector Database สำหรับ Semantic Search...");
+            await new Promise(resolve => setTimeout(resolve, 600));
+          }
+
+          // Step 5: Complete
+          setScanStep("complete");
+          setScanMessage(result.fromCache
+            ? `ใช้ผลสแกนจาก cache - พบ ${result.data?.total_vulnerabilities || 0} ช่องโหว่`
+            : `สแกนเสร็จสิ้น - พบ ${result.data?.total_vulnerabilities || 0} ช่องโหว่`
           );
 
           setLocalVulnerabilities(result.data);
@@ -125,9 +158,18 @@ export default function DependenciesPage() {
           } else {
             console.log("🔄 New scan completed");
           }
+
+          // Reset progress after delay
+          setTimeout(() => {
+            setScanStep("idle");
+            setScanMessage("");
+          }, 3000);
+
         } catch (error: any) {
           console.error("Scan failed:", error);
           setLocalError(error.message || "Failed to scan vulnerabilities");
+          setScanStep("idle");
+          setScanMessage("");
         } finally {
           setLocalIsScanning(false);
         }
@@ -269,16 +311,11 @@ export default function DependenciesPage() {
           <>
             {/* Status Alerts */}
             <div className="space-y-4 mb-6">
-              {localIsScanning && (
-                <div className="alert alert-info shadow-lg bg-info/10 border-info/20 text-info-content">
-                  <div className="flex items-center gap-3">
-                    <span className="loading loading-spinner loading-md text-info"></span>
-                    <div>
-                      <h3 className="font-bold">Scanning in progress</h3>
-                      <div className="text-xs opacity-80">Analyzing dependencies for security vulnerabilities...</div>
-                    </div>
-                  </div>
-                </div>
+              {scanStep !== "idle" && (
+                <ScanProgressIndicator
+                  currentStep={scanStep}
+                  message={scanMessage}
+                />
               )}
 
               {viewingHistoryVersion && (
@@ -343,7 +380,7 @@ export default function DependenciesPage() {
             </div>
 
             {/* Tab Content */}
-            <div className="bg-base-100 rounded-b-box rounded-tr-box border-base-300 min-h-[500px]">
+            <div className="rounded-b-box rounded-tr-box border-base-300 min-h-[500px]">
               {activeTab === 'dependencies' && (
                 <DependenciesTab
                   analysis={analysis}

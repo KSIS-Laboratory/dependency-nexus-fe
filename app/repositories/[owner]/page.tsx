@@ -12,7 +12,7 @@ import { RepositoryCard } from "@/components/RepositoryCard";
 import { PageHeader } from "@/components/PageHeader";
 import { OwnerProfileHeader } from "@/components/OwnerProfileHeader";
 import { ChatbotWidget } from "@/components/ChatbotWidget";
-import { triggerChatbotContext } from "@/lib/chatbot";
+import { triggerChatbotContext, ChatbotClient } from "@/lib/chatbot";
 import { ArrowLeft, Search } from "lucide-react";
 
 export default function OwnerRepositoriesPage({ params }: { readonly params: Promise<{ owner: string }> }) {
@@ -55,9 +55,29 @@ export default function OwnerRepositoriesPage({ params }: { readonly params: Pro
         router.push(`/repositories/${repoName}/dependencies`);
     };
 
-    const handleAskAI = (repoName: string) => {
+    const handleAskAI = async (repoFullName: string, repoName: string) => {
+        // Extract vulnerability context from MinIO automatically
+        let contextInfo = "";
+        try {
+            const context = await ChatbotClient.extractRepositoryContext(repoFullName, 15);
+            if (context.vulnerability_count > 0) {
+                contextInfo = `\n\n[Vulnerability Context - ${context.vulnerability_count} รายการ]\n${context.summary}\n\n${context.context}`;
+            }
+        } catch (error) {
+            console.warn("Could not fetch vulnerability context:", error);
+        }
+
+        const prompt = `[Repository: ${repoName}]
+
+กรุณาวิเคราะห์ช่องโหว่ (Vulnerabilities) ของ repository นี้:
+
+1. สรุปจำนวนช่องโหว่ตาม Severity (Critical, High, Moderate, Low)
+2. แสดง packages ที่มีความเสี่ยงสูงสุด 5 อันดับ
+3. แนะนำวิธีแก้ไขเร่งด่วนสำหรับ Critical vulnerabilities
+4. ประเมินความเสี่ยงโดยรวมของ repository${contextInfo}`;
+
         triggerChatbotContext({
-            message: `วิเคราะห์ช่องโหว่ใน ${repoName} แบบสั้นๆ`,
+            message: prompt,
             autoSend: true,
         });
     };
@@ -127,7 +147,7 @@ export default function OwnerRepositoriesPage({ params }: { readonly params: Pro
                                 key={repo.id}
                                 repository={repo}
                                 onClick={() => handleAnalyze(repo.full_name)}
-                                onAskAI={() => handleAskAI(repo.name)}
+                                onAskAI={() => handleAskAI(repo.full_name, repo.name)}
                             />
                         ))}
                     </div>

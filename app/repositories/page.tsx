@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
@@ -10,10 +10,11 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { RepositoryCard } from "@/components/RepositoryCard";
 import { RepositorySearch } from "@/components/RepositorySearch";
+import { RepositoryFilterBar, RepositoryFilters, defaultFilters, applyRepositoryFilters } from "@/components/RepositoryFilterBar";
 import { PageHeader } from "@/components/PageHeader";
 import { ChatbotWidget } from "@/components/ChatbotWidget";
-import { triggerChatbotContext } from "@/lib/chatbot";
-import { FolderGit2, ArrowLeft } from "lucide-react";
+import { triggerChatbotContext, ChatbotClient } from "@/lib/chatbot";
+import { FolderGit2, ArrowLeft, Loader2 } from "lucide-react";
 
 export default function RepositoriesPage() {
   const router = useRouter();
@@ -21,11 +22,18 @@ export default function RepositoriesPage() {
   const {
     repositories,
     isLoading: reposLoading,
+    isLoadingMore,
     error,
-    refetch
+    hasMore,
+    refetch,
+    loadMore
   } = useRepositories(githubToken);
   const [user, setUser] = useState<User | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filters, setFilters] = useState<RepositoryFilters>(defaultFilters);
+
+  // Intersection Observer for infinite scroll
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -47,21 +55,62 @@ export default function RepositoriesPage() {
     }
   }, [authLoading, isAuthenticated, router]);
 
+  // Infinite scroll observer - only when no filters active
+  const hasActiveFilters = filters.owners.length > 0 ||
+    filters.languages.length > 0 ||
+    filters.visibility !== "all" ||
+    filters.scanned !== "all";
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore && !searchQuery && !hasActiveFilters) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasMore, isLoadingMore, loadMore, searchQuery, hasActiveFilters]);
+
   const handleAnalyze = (repoName: string) => {
     router.push(`/repositories/${repoName}/dependencies`);
   };
 
-  const handleAskAI = (repoName: string) => {
+  const handleAskAI = async (repoFullName: string, repoName: string) => {
+    // Extract vulnerability context from MinIO automatically
+    let contextInfo = "";
+    try {
+      const context = await ChatbotClient.extractRepositoryContext(repoFullName, 15);
+      if (context.vulnerability_count > 0) {
+        contextInfo = `\n\n[Vulnerability Context - ${context.vulnerability_count} รายการ]\n${context.summary}\n\n${context.context}`;
+      }
+    } catch (error) {
+      console.warn("Could not fetch vulnerability context:", error);
+    }
+
+    const prompt = `[Repository: ${repoName}]
+
+กรุณาวิเคราะห์ช่องโหว่ (Vulnerabilities) ของ repository นี้:
+
+1. สรุปจำนวนช่องโหว่ตาม Severity (Critical, High, Moderate, Low)
+2. แสดง packages ที่มีความเสี่ยงสูงสุด 5 อันดับ
+3. แนะนำวิธีแก้ไขเร่งด่วนสำหรับ Critical vulnerabilities
+4. ประเมินความเสี่ยงโดยรวมของ repository${contextInfo}`;
+
     triggerChatbotContext({
-      message: `วิเคราะห์ช่องโหว่ใน ${repoName} แบบสั้นๆ`,
+      message: prompt,
       autoSend: true,
     });
   };
 
-  const filteredRepositories = repositories.filter(repo =>
-    repo.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    repo.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Apply all filters
+  const filteredRepositories = applyRepositoryFilters(repositories, filters, searchQuery);
 
   if (authLoading || reposLoading) {
     return <LoadingSpinner message="Loading repositories..." />;
@@ -93,11 +142,11 @@ export default function RepositoriesPage() {
       </PageHeader>
 
       <main className="container mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 animate-fade-in">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6 animate-fade-in">
           <div>
             <h2 className="text-3xl font-bold text-base-content flex items-center gap-3">
               <span>All Repositories</span>
-              <span className="badge badge-primary">{repositories.length}</span>
+              <span className="badge badge-primary">{repositories.length}{hasMore ? '+' : ''}</span>
             </h2>
             <p className="mt-2 text-base-content/60">
               Manage and analyze your GitHub repositories
@@ -112,18 +161,51 @@ export default function RepositoriesPage() {
           </div>
         </div>
 
-        {filteredRepositories.length > 0 ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredRepositories.map((repo, index) => (
-              <div key={repo.id} className="animate-slide-up" style={{ animationDelay: `${index * 0.03}s` }}>
-                <RepositoryCard
-                  repository={repo}
-                  onClick={() => handleAnalyze(repo.full_name)}
-                  onAskAI={() => handleAskAI(repo.name)}
-                />
-              </div>
-            ))}
+        {/* Filter Bar */}
+        <RepositoryFilterBar
+          repositories={repositories}
+          filters={filters}
+          onFiltersChange={setFilters}
+        />
+
+        {/* Results Count */}
+        {(searchQuery || hasActiveFilters) && (
+          <div className="mb-4 text-sm text-base-content/60">
+            Showing {filteredRepositories.length} of {repositories.length} repositories
           </div>
+        )}
+
+        {filteredRepositories.length > 0 ? (
+          <>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {filteredRepositories.map((repo, index) => (
+                <div key={repo.id} className="animate-slide-up" style={{ animationDelay: `${Math.min(index, 20) * 0.03}s` }}>
+                  <RepositoryCard
+                    repository={repo}
+                    onClick={() => handleAnalyze(repo.full_name)}
+                    onAskAI={() => handleAskAI(repo.full_name, repo.name)}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Load More Trigger / Loading Indicator */}
+            {!searchQuery && !hasActiveFilters && (
+              <div ref={loadMoreRef} className="flex justify-center py-8">
+                {isLoadingMore && (
+                  <div className="flex items-center gap-2 text-base-content/60">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Loading more repositories...</span>
+                  </div>
+                )}
+                {!hasMore && repositories.length > 0 && (
+                  <p className="text-base-content/40 text-sm">
+                    All {repositories.length} repositories loaded
+                  </p>
+                )}
+              </div>
+            )}
+          </>
         ) : (
           <div className="card bg-base-100 shadow-md">
             <div className="card-body items-center text-center py-20">
@@ -132,16 +214,19 @@ export default function RepositoriesPage() {
               </div>
               <h3 className="text-xl font-bold text-base-content mb-2">No repositories found</h3>
               <p className="text-base-content/60 max-w-xs">
-                {searchQuery
-                  ? `No matches for "${searchQuery}". Try a different search term.`
+                {searchQuery || hasActiveFilters
+                  ? "No repositories match your current filters. Try adjusting your search or filters."
                   : "You don't have any repositories connected yet."}
               </p>
-              {searchQuery && (
+              {(searchQuery || hasActiveFilters) && (
                 <button
                   className="btn btn-outline mt-6"
-                  onClick={() => setSearchQuery("")}
+                  onClick={() => {
+                    setSearchQuery("");
+                    setFilters(defaultFilters);
+                  }}
                 >
-                  Clear search
+                  Clear all filters
                 </button>
               )}
             </div>

@@ -29,6 +29,15 @@ export interface DependencyAnalysis {
   dependencies: Record<string, any>;
 }
 
+export interface RepositoriesResponse {
+  repositories: Repository[];
+  count: number;
+  page: number;
+  per_page: number;
+  total_count: number;
+  has_more: boolean;
+}
+
 export class GitHubAPIService {
   private static handleUnauthorized(response: Response): void {
     if (response.status === 401) {
@@ -44,10 +53,22 @@ export class GitHubAPIService {
     };
   }
 
-  static async getRepositories(githubToken: string): Promise<Repository[]> {
-    const response = await fetch(`${API_URL}${API_ENDPOINTS.GITHUB.REPOSITORIES}`, {
-      headers: this.getHeaders(githubToken),
+  static async getRepositories(
+    githubToken: string,
+    page: number = 1,
+    perPage: number = 15
+  ): Promise<RepositoriesResponse> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      per_page: perPage.toString(),
     });
+    
+    const response = await fetch(
+      `${API_URL}${API_ENDPOINTS.GITHUB.REPOSITORIES}?${params}`,
+      {
+        headers: this.getHeaders(githubToken),
+      }
+    );
 
     this.handleUnauthorized(response);
 
@@ -55,8 +76,7 @@ export class GitHubAPIService {
       throw new Error("Failed to fetch repositories");
     }
 
-    const data = await response.json();
-    return data.repositories;
+    return await response.json();
   }
 
   static async analyzeDependencies(
