@@ -105,6 +105,28 @@ export interface RemediationGuidance {
   }>;
 }
 
+// RAG Evaluation Types (DeepEval)
+export interface RAGEvaluationResult {
+  faithfulness: number;
+  answer_relevancy: number;
+  contextual_precision?: number | null; // Optional from DeepEval
+  overall_score: number;
+  faithfulness_reason?: string;
+  relevancy_reason?: string;
+  precision_reason?: string;
+  is_fallback: boolean; // True if using heuristic fallback
+  // Legacy compatibility
+  context_precision?: number;
+  retrieval_source?: string;
+  context_length?: number;
+  sources_count?: number;
+}
+
+export interface EvaluateResponse {
+  evaluation: RAGEvaluationResult;
+  timestamp: string;
+}
+
 export class ChatbotClient {
   private conversationId: string | null = null;
   private readonly userId: string;
@@ -154,12 +176,16 @@ export class ChatbotClient {
    * @param onToken - Callback for each token received
    * @param onComplete - Callback when streaming is complete
    * @param onError - Callback on error
+   * @param onEvaluation - Callback when evaluation is received
+   * @param onStart - Callback when streaming starts with retrieval sources
    */
   async sendMessageStream(
     message: string,
     onToken: (token: string) => void,
     onComplete?: (fullResponse: string) => void,
-    onError?: (error: string) => void
+    onError?: (error: string) => void,
+    onEvaluation?: (evaluation: RAGEvaluationResult) => void,
+    onStart?: (conversationId: string, retrievalSources: string[]) => void
   ): Promise<void> {
     try {
       const payload: Record<string, unknown> = {
@@ -206,11 +232,19 @@ export class ChatbotClient {
               
               if (data.type === "start" && data.conversation_id) {
                 this.conversationId = data.conversation_id;
+                // Notify about retrieval sources if callback provided
+                if (data.retrieval_sources && onStart) {
+                  onStart(data.conversation_id, data.retrieval_sources);
+                }
               } else if (data.type === "token" && data.content) {
                 fullResponse += data.content;
                 onToken(data.content);
               } else if (data.type === "done") {
                 onComplete?.(fullResponse);
+                // Pass evaluation from backend if available
+                if (data.evaluation && onEvaluation) {
+                  onEvaluation(data.evaluation);
+                }
               } else if (data.type === "error") {
                 onError?.(data.message || "Unknown streaming error");
               }
@@ -471,6 +505,44 @@ export class ChatbotClient {
       return await response.json();
     } catch (error) {
       console.error("Error extracting repository context:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Evaluate a RAG response
+   * @param question - Original user question
+   * @param answer - LLM generated answer
+   * @param context - Retrieved context used
+   * @param retrievalSource - Which retrieval method was used
+   */
+  async evaluateResponse(
+    question: string,
+    answer: string,
+    context: string,
+    retrievalSource: string = "hybrid"
+  ): Promise<EvaluateResponse> {
+    try {
+      const response = await fetch(`${CHATBOT_API}/chat/evaluate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          question,
+          answer,
+          context,
+          retrieval_source: retrievalSource,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to evaluate response: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error evaluating response:", error);
       throw error;
     }
   }

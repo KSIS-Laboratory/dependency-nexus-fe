@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { ChatbotClient, ChatResponse, ChatMessage as ChatMessageType } from "@/lib/chatbot";
+import { ChatbotClient, ChatResponse, ChatMessage as ChatMessageType, RAGEvaluationResult } from "@/lib/chatbot";
 
 export interface UseChatbotOptions {
   userId: string;
@@ -129,6 +129,8 @@ export function useChatbot({ userId, onError }: UseChatbotOptions) {
     step: "idle",
     message: "",
   });
+  // Evaluations per message ID
+  const [evaluations, setEvaluations] = useState<Record<string, RAGEvaluationResult>>({});
   const clientRef = useRef<ChatbotClient | null>(null);
   const isInitialized = useRef(false);
 
@@ -308,6 +310,13 @@ export function useChatbot({ userId, onError }: UseChatbotOptions) {
           (errorMsg: string) => {
             setError(errorMsg);
             onError?.(errorMsg);
+          },
+          // onEvaluation - receive evaluation from backend
+          (evaluation) => {
+            setEvaluations(prev => ({
+              ...prev,
+              [assistantMsgId]: evaluation
+            }));
           }
         );
 
@@ -379,5 +388,8 @@ export function useChatbot({ userId, onError }: UseChatbotOptions) {
     // Chat history info
     hasStoredHistory: sessions.length > 0,
     sessionCount: sessions.length,
+    
+    // RAG Evaluations
+    evaluations,
   };
 }

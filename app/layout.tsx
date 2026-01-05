@@ -43,7 +43,7 @@ export default function RootLayout({
             `,
           }}
         />
-        <DecorativeElements />
+        {/* <DecorativeElements /> */}
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

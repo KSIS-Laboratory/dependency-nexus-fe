@@ -6,12 +6,13 @@ import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthService, User } from "@/lib/auth";
 import KnowledgeGraph from "@/components/KnowledgeGraph";
-import { ArrowLeft, Network, GitMerge, Share2, Split, Info, ChevronRight, Home } from "lucide-react";
+import { ArrowLeft, Network, GitMerge, Share2, Info, ChevronRight, Home, Grid3X3 } from "lucide-react";
 import { HierarchicalEdgeBundling } from "@/components/HierarchicalEdgeBundling";
 import { CollapsibleTree } from "@/components/CollapsibleTree";
+import { SecurityHeatmap } from "@/components/SecurityHeatmap";
 import Link from "next/link";
 
-type TabId = 'force' | 'tree' | 'hierarchical' | 'comparison';
+type TabId = 'force' | 'tree' | 'hierarchical' | 'heatmap';
 
 interface TabConfig {
     id: TabId;
@@ -86,6 +87,19 @@ export default function KnowledgeGraphPage() {
                 'Bundled edges reduce visual clutter',
                 'Great for seeing overall structure',
                 'Colors indicate vulnerability severity'
+            ]
+        },
+        {
+            id: 'heatmap',
+            label: 'Security Heatmap',
+            shortLabel: 'Heatmap',
+            icon: Grid3X3,
+            description: 'Heatmap showing vulnerability severity distribution across all repositories.',
+            tips: [
+                'Color intensity shows vulnerability count',
+                'Filter by specific repositories',
+                'Quickly identify high-risk repos',
+                'Summary stats at the bottom'
             ]
         },
     ];
@@ -217,6 +231,9 @@ export default function KnowledgeGraphPage() {
                             )}
                             {activeTab === 'hierarchical' && (
                                 <HierarchicalEdgeBundling userName={user?.username} />
+                            )}
+                            {activeTab === 'heatmap' && (
+                                <SecurityHeatmap width={1100} height={600} />
                             )}
                         </div>
                     </div>

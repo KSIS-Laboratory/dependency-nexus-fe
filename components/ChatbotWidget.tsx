@@ -4,9 +4,12 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Send, X, MessageCircle, Copy, Check, Trash2, ChevronDown, ChevronRight,
   Brain, Database, Loader2, CheckCircle2, Search, FileJson,
-  Plus, History
+  Plus, History, GitBranch
 } from "lucide-react";
 import { useChatbot, ProcessingStep } from "@/hooks/useChatbot";
+import { EvaluationBadge } from "@/components/EvaluationBadge";
+import { ChatRepoSelector } from "@/components/ChatRepoSelector";
+import { ChatHistorySidebar } from "@/components/ChatHistorySidebar";
 
 /**
  * Component to render batched vulnerability analysis responses
@@ -21,7 +24,7 @@ function BatchedMessageContent({ content }: Readonly<{ content: string }>) {
   if (!isBatchedResponse) {
     // Regular message - render as-is
     return (
-      <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word text-base-content/60">
+      <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word text-base-content">
         {content}
       </p>
     );
@@ -70,7 +73,7 @@ function BatchedMessageContent({ content }: Readonly<{ content: string }>) {
       {/* Header section (summary) */}
       {sections[0]?.header === null && (
         <div className="pb-2 border-b border-base-content/10">
-          <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word text-base-content/80 font-medium">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word font-medium">
             {sections[0].content}
           </p>
         </div>
@@ -120,7 +123,7 @@ function BatchedMessageContent({ content }: Readonly<{ content: string }>) {
 
             {isExpanded && (
               <div className="p-3 bg-base-100">
-                <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word text-base-content/60">
+                <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-word text-base-content">
                   {section.content}
                 </p>
               </div>
@@ -142,7 +145,7 @@ interface ProcessingStepsIndicatorProps {
 
 const PROCESSING_STEPS: { step: ProcessingStep; label: string; icon: React.ReactNode }[] = [
   { step: "analyzing", label: "วิเคราะห์", icon: <Search className="h-3.5 w-3.5" /> },
-  { step: "searching", label: "Hybrid RAG", icon: <Database className="h-3.5 w-3.5" /> },
+  { step: "searching", label: "Vector RAG", icon: <Database className="h-3.5 w-3.5" /> },
   { step: "extracting", label: "Extract", icon: <FileJson className="h-3.5 w-3.5" /> },
   { step: "fetching", label: "ดึงข้อมูล", icon: <Brain className="h-3.5 w-3.5" /> },
   { step: "generating", label: "สร้างคำตอบ", icon: <Brain className="h-3.5 w-3.5" /> },
@@ -208,6 +211,7 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
   const [isOpen, setIsOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const handleChatbotError = useCallback((err: string) => {
@@ -231,6 +235,8 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
     startNewChat,
     loadSession,
     deleteSession,
+    // RAG Evaluations
+    evaluations,
   } = useChatbot({
     userId,
     onError: handleChatbotError,
@@ -272,7 +278,15 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    await sendMessage(input);
+    if (!input.trim()) return;
+
+    // Prepend @repo_name context if a repo is selected
+    let messageToSend = input.trim();
+    if (selectedRepo) {
+      messageToSend = `@${selectedRepo} ${messageToSend}`;
+    }
+
+    await sendMessage(messageToSend);
   };
 
   const handleClose = useCallback(() => {
@@ -327,7 +341,7 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
       {/* Floating Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className="btn btn-circle btn-lg fixed bottom-6 right-6 z-40 bg-linear-to-br from-base-content/10 to-base-content/10 shadow-2xl hover:shadow-base-content/50 hover:scale-110 active:scale-95 transition-all border-none"
+        className="btn btn-circle btn-lg  bg-linear-to-r from-primary to-secondary fixed bottom-6 right-6 z-40"
         aria-label="Open AI Assistant"
       >
         <MessageCircle className="h-7 w-7 text-white" />
@@ -357,6 +371,13 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
                 <div>
                   <p className="text-xs uppercase tracking-wide text-theme-muted">AI Assistant</p>
                   <h2 className="text-lg font-semibold text-gradient">Dependency & Security Advisor</h2>
+                  {/* Selected Repo Badge */}
+                  {selectedRepo && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <GitBranch className="w-3 h-3 text-primary" />
+                      <span className="text-xs text-primary font-medium">{selectedRepo}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -388,57 +409,19 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
               </div>
             </div>
 
+
+
             {/* Main content with optional sidebar */}
             <div className="flex flex-1 overflow-hidden">
               {/* History Sidebar */}
               {showHistory && (
-                <div className="w-64 border-r border-base-content/10 bg-base-200/50 flex flex-col">
-                  <div className="p-3 border-b border-base-content/10">
-                    <h3 className="text-sm font-semibold text-base-content/80 flex items-center gap-2">
-                      <History className="h-4 w-4" />
-                      ประวัติการสนทนา ({sessions.length})
-                    </h3>
-                  </div>
-                  <div className="flex-1 overflow-y-auto">
-                    {sessions.length === 0 ? (
-                      <div className="p-4 text-center text-sm text-base-content/50">
-                        ยังไม่มีประวัติการสนทนา
-                      </div>
-                    ) : (
-                      <div className="space-y-1 p-2">
-                        {sessions.map((session) => (
-                          <div
-                            key={session.id}
-                            className={`group flex items-center justify-between p-2 rounded-lg cursor-pointer hover:bg-base-300/50 transition-colors ${session.id === currentSessionId ? 'bg-primary/10 border border-primary/20' : ''
-                              }`}
-                            onClick={() => { loadSession(session.id); setShowHistory(false); }}
-                          >
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-base-content/80 truncate">
-                                {session.title || "New Chat"}
-                              </p>
-                              <p className="text-xs text-base-content/50">
-                                {new Date(session.updatedAt).toLocaleDateString('th-TH', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </p>
-                            </div>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); deleteSession(session.id); }}
-                              className="btn btn-circle btn-xs btn-ghost opacity-0 group-hover:opacity-100 transition-opacity"
-                              aria-label="Delete session"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <ChatHistorySidebar
+                  sessions={sessions}
+                  currentSessionId={currentSessionId}
+                  onLoadSession={loadSession}
+                  onDeleteSession={deleteSession}
+                  onClose={() => setShowHistory(false)}
+                />
               )}
 
               {/* Messages area */}
@@ -497,12 +480,19 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
                           </div>
                         )}
                         <div className={`group relative max-w-3xl w-full rounded-2xl border ${isUser
-                          ? "bg-base-content/10 text-base-content/60 border-base-content/10"
-                          : "bg-white/80 border-base-content/10"
+                          ? "bg-base-content/10 text-base-content border-base-content/10"
+                          : "bg-base-200/90 border-base-content/10 text-base-content"
                           } p-4 shadow-sm transition hover:shadow-md`}
                         >
                           {/* Render batched content with sections */}
                           <BatchedMessageContent content={message.content} />
+
+                          {/* Show evaluation badge for assistant messages */}
+                          {!isUser && evaluations[message.id] && (
+                            <div className="mt-2 pt-2 border-t border-base-content/10">
+                              <EvaluationBadge evaluation={evaluations[message.id]} />
+                            </div>
+                          )}
                           <button
                             onClick={() => copyToClipboard(message.content, message.id)}
                             className="absolute -right-2 -top-2 hidden bg-base-100/90 p-1 text-base-content/70 shadow group-hover:flex btn btn-circle btn-sm btn-ghost"
@@ -530,34 +520,77 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
                 </div>
 
                 {/* Input */}
-                <form onSubmit={handleSendMessage} className="border-t border-base-content/10 p-4 bg-base/50">
-                  <div className="flex flex-col gap-3">
-                    <textarea
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      placeholder="ถามเกี่ยวกับ dependencies, vulnerabilities หรือ security guidance..."
-                      disabled={!chatbotReady || loading}
-                      className="textarea input-nature min-h-20 w-full resize-none text-base-content"
-                    />
-                    <div className="flex items-center justify-between text-xs text-base-content/60">
-                      <span>{chatbotReady ? "พร้อมตอบทุกคำถาม" : "กำลังเตรียมตัว..."}</span>
-                      <div className="flex gap-2">
+                <form onSubmit={handleSendMessage} className="border-t border-base-content/10 px-4  bg-base/50">
+                  <div className="flex flex-col gap-2">
+                    {/* Repository Selector */}
+                    <div className="p-2 border-b border-base-content/10 bg-base-100/50 flex items-center gap-2">
+                      <span className="text-xs text-base-content/60">ถามเกี่ยวกับ:</span>
+                      <ChatRepoSelector
+                        selectedRepo={selectedRepo}
+                        onSelectionChange={setSelectedRepo}
+                        className="flex-1"
+                      />
+                    </div>
+                    {/* Quick Prompt Chips */}
+                    <div className="flex gap-2 overflow-x-auto py-1 scrollbar-hide">
+                      {[
+                        { emoji: "🔍", label: "สรุป vulnerabilities", prompt: "สรุป vulnerabilities ทั้งหมดที่พบ" },
+                        { emoji: "⚠️", label: "Critical issues", prompt: "มี critical vulnerabilities อะไรบ้าง" },
+                        { emoji: "📦", label: "Dependencies", prompt: "มี dependencies อะไรบ้าง" },
+                        { emoji: "🛡️", label: "Security advice", prompt: "แนะนำวิธีแก้ไขปัญหา security" },
+                        { emoji: "📊", label: "รายงานสรุป", prompt: "สร้างรายงานสรุปความปลอดภัยของโปรเจค" },
+                      ].map((item) => (
                         <button
+                          key={item.label}
                           type="button"
-                          className="btn btn-sm btn-ghost text-base-content/60 hover:bg-base-content/20"
-                          onClick={() => setInput("")}
-                          disabled={!input}
+                          onClick={() => setInput(item.prompt)}
+                          className="btn btn-xs btn-ghost border border-base-content/10 hover:border-primary/50 hover:bg-primary/10 gap-1 shrink-0 text-base-content/70"
                         >
-                          ล้างข้อความ
+                          <span>{item.emoji}</span>
+                          <span className="text-xs">{item.label}</span>
                         </button>
-                        <button
-                          type="submit"
-                          disabled={!chatbotReady || loading || !input.trim()}
-                          className="btn btn-nature"
-                        >
-                          <Send className="h-5 w-5" />
-                        </button>
-                      </div>
+                      ))}
+                    </div>
+                    {/* Textarea with inline repo badge */}
+                    <div className="relative flex items-start gap-2 textarea input-nature min-h-16 w-full p-2 focus-within:ring-2 focus-within:ring-primary/30">
+                      {/* Inline repo badge */}
+                      {selectedRepo && (
+                        <span className="badge badge-primary badge-sm gap-1 shrink-0 mt-0.5">
+                          <GitBranch className="w-3 h-3" />
+                          @{selectedRepo.split('/').pop()}
+                        </span>
+                      )}
+                      <textarea
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        placeholder={selectedRepo
+                          ? `เช่น "มี vulnerability อะไรบ้าง"...`
+                          : "เลือก repository ก่อนเพื่อเริ่มถามคำถาม..."}
+                        disabled={!chatbotReady || loading || !selectedRepo}
+                        className="flex-1 bg-transparent resize-none text-base-content outline-none min-h-12"
+                        rows={2}
+                      />
+                    </div>
+
+                    {/* Bottom bar: Actions */}
+                    <div className="flex items-center gap-2 pb-4">
+
+                      {/* Spacer */}
+                      <div className="flex-1" />
+
+                      {/* Status */}
+                      <span className="text-xs text-base-content/50 hidden sm:block">
+                        {chatbotReady ? "พร้อม" : "..."}
+                      </span>
+
+                      {/* Send button */}
+                      <button
+                        type="submit"
+                        disabled={!chatbotReady || loading || !input.trim() || !selectedRepo}
+                        className="btn btn-nature btn-sm"
+                      >
+                        <Send className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
                 </form>
