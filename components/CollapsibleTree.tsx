@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
 import { API_URL, API_ENDPOINTS } from "@/lib/constants";
 import { VisualizationLoadingOverlay } from "@/components/VisualizationLoadingOverlay";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { GraphLegend } from "@/components/GraphLegend";
 import { TREE_DATA_QUERY, COMPARE_REPOS_QUERY } from "@/lib/graph-queries";
 import { VulnerabilityDetailModal } from "@/components/VulnerabilityDetailModal";
@@ -43,7 +43,7 @@ export const CollapsibleTree: React.FC<CollapsibleTreeProps> = ({ userName }) =>
     const svgRef = useRef<SVGSVGElement>(null);
 
     const [data, setData] = useState<RawData[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [selectedVulnId, setSelectedVulnId] = useState<string | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -343,44 +343,44 @@ export const CollapsibleTree: React.FC<CollapsibleTreeProps> = ({ userName }) =>
 
     }, [data]);
 
-
-    if (loading) return (
-        <div className="relative w-full h-full overflow-hidden bg-base-100 rounded-lg">
-            <VisualizationLoadingOverlay message="Loading tree data..." />
-        </div>
-    );
-    if (error) return (
-        <div className="flex items-center justify-center h-full bg-base-100 p-4">
-            <div className="alert alert-error max-w-md shadow-lg">
-                <AlertCircle className="w-5 h-5" />
-                <span>{error}</span>
-            </div>
-        </div>
-    );
-    if (!data.length) return (
-        <RepositoryEmptyState
-            selectedRepos={selectedRepos}
-            onSelectionChange={setSelectedRepos}
-            title="Select a Repository"
-            description="Choose one or more repositories from the dropdown above to visualize their dependency tree."
-            icon={
-                <svg className="w-10 h-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-                </svg>
-            }
-        />
-    );
+    // Check if showing empty state
+    const showEmptyState = !data.length && !loading && selectedRepos.length === 0;
 
     return (
-        <div className="relative w-full h-full overflow-hidden bg-base-100 rounded-lg">
-            {/* Controls Bar */}
+        <div className="relative w-full h-full overflow-hidden bg-base-100">
+            {/* Controls Bar - Always visible, same instance */}
             <div className="absolute top-4 right-4 flex gap-2 z-10">
-                {/* Repo Selector Dropdown */}
                 <RepositorySelector
                     selectedRepos={selectedRepos}
                     onSelectionChange={setSelectedRepos}
                 />
             </div>
+
+            {/* Empty State Overlay */}
+            {showEmptyState && (
+                <RepositoryEmptyState
+                    title="Select a Repository"
+                    description="Choose one or more repositories from the dropdown above to visualize their dependency tree."
+                    icon={
+                        <svg className="w-10 h-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                        </svg>
+                    }
+                />
+            )}
+
+            {/* Loading Overlay */}
+            {loading && <VisualizationLoadingOverlay message="Loading tree data..." />}
+
+            {/* Error Overlay */}
+            {error && (
+                <div className="absolute inset-0 flex items-center justify-center bg-base-100/95 z-20">
+                    <div className="alert alert-error max-w-md shadow-lg">
+                        <AlertCircle className="w-5 h-5" />
+                        <span>{error}</span>
+                    </div>
+                </div>
+            )}
 
             {/* Tree Canvas */}
             <svg ref={svgRef} className="w-full h-full min-h-[600px] bg-base-200/30"></svg>
@@ -399,3 +399,4 @@ export const CollapsibleTree: React.FC<CollapsibleTreeProps> = ({ userName }) =>
         </div>
     );
 };
+

@@ -1,31 +1,28 @@
 "use client";
 
 import React from "react";
-import { RepositorySelector } from "./RepositorySelector";
 
 interface RepositoryEmptyStateProps {
-    /** Currently selected repositories */
-    readonly selectedRepos: string[];
-    /** Callback when selection changes */
-    readonly onSelectionChange: (repos: string[]) => void;
     /** Custom title text */
     readonly title?: string;
     /** Custom description text */
     readonly description?: string;
     /** Icon element to display */
     readonly icon?: React.ReactNode;
+    /** Additional class names */
+    readonly className?: string;
 }
 
 /**
- * Empty state component shown when no repository is selected for visualization.
- * Provides a consistent UI across KnowledgeGraph, CollapsibleTree, and HierarchicalEdgeBundling.
+ * Empty state content component shown when no repository is selected for visualization.
+ * Does NOT include RepositorySelector - parent component should render it separately
+ * to prevent dropdown from closing when first repo is selected.
  */
 export const RepositoryEmptyState: React.FC<RepositoryEmptyStateProps> = ({
-    selectedRepos,
-    onSelectionChange,
     title = "Select a Repository",
     description = "Choose one or more repositories from the dropdown above to visualize the data.",
     icon,
+    className = "",
 }) => {
     const defaultIcon = (
         <svg className="w-10 h-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -34,16 +31,7 @@ export const RepositoryEmptyState: React.FC<RepositoryEmptyStateProps> = ({
     );
 
     return (
-        <div className="flex flex-col items-center justify-center h-full bg-base-100 p-8 relative">
-            {/* Repository Selector Dropdown - Top Right */}
-            <div className="absolute top-4 right-4 z-10">
-                <RepositorySelector
-                    selectedRepos={selectedRepos}
-                    onSelectionChange={onSelectionChange}
-                />
-            </div>
-
-            {/* Prompt Message */}
+        <div className={`absolute inset-0 flex items-center justify-center z-5 ${className} bg-base-200`}>
             <div className="text-center">
                 <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center">
                     {icon || defaultIcon}
@@ -54,3 +42,4 @@ export const RepositoryEmptyState: React.FC<RepositoryEmptyStateProps> = ({
         </div>
     );
 };
+

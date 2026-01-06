@@ -55,6 +55,7 @@ export default function DependenciesPage() {
   const [localIsScanning, setLocalIsScanning] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [viewingHistoryVersion, setViewingHistoryVersion] = useState<string | null>(null);
+  const [historicalAnalysis, setHistoricalAnalysis] = useState<any>(null);
 
   // Scan Progress State
   const [scanStep, setScanStep] = useState<ScanStep>("idle");
@@ -183,6 +184,11 @@ export default function DependenciesPage() {
     if (!jwtToken) return;
     setLocalIsScanning(true);
     setLocalError(null);
+
+    // Step 1: Set scan progress
+    setScanStep("scanning");
+    setScanMessage(`กำลังสแกน ${version.dependencies.length} packages จาก version ${version.version_id}...`);
+
     try {
       // Convert DependencyItem[] to PackageQuery[]
       const packages = version.dependencies.map((dep: any) => ({
@@ -191,24 +197,75 @@ export default function DependenciesPage() {
         ecosystem: dep.package_manager
       }));
 
-      // Scan these packages (Read-only scan, does not create new history)
-      const result = await VulnerabilityAPIService.scanPackages(
+      // Step 2: Create historical analysis structure for DependenciesTab display
+      // Group dependencies by package_manager (which is used as filename key)
+      const historicalDependencies: Record<string, Record<string, string>> = {};
+      const historicalFiles: Record<string, any> = {};
+
+      version.dependencies.forEach((dep: any) => {
+        const filename = dep.file_path || `${dep.package_manager}.json`;
+        if (!historicalDependencies[filename]) {
+          historicalDependencies[filename] = {};
+          historicalFiles[filename] = {
+            path: filename,
+            size: 0,
+            type: dep.package_manager
+          };
+        }
+        historicalDependencies[filename][dep.name] = dep.version;
+      });
+
+      // Create a synthetic analysis structure that DependenciesTab can understand
+      const historicalAnalysis = {
+        dependencies: historicalDependencies,
+        dependency_files: historicalFiles,
+      };
+
+      // Step 3: Rescan packages for NEW vulnerabilities and update MinIO if found
+      const result = await VulnerabilityAPIService.rescanHistoricalVersion(
         jwtToken,
+        `${owner}/${repo}`,
+        version.version_id,
         packages
       );
 
-      setLocalVulnerabilities(result);
-      // We don't set scanFromCache because this is a fresh "in-memory" scan of old deps
+      // Step 4: Update progress
+      if (result.updated) {
+        setScanStep("indexing");
+        setScanMessage("กำลังอัปเดต version ใน MinIO...");
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      setScanStep("complete");
+      setScanMessage(
+        result.updated
+          ? `พบ ${result.data.total_vulnerabilities} ช่องโหว่ใหม่ - อัปเดต version แล้ว`
+          : `สแกนเสร็จสิ้น - พบ ${result.data.total_vulnerabilities} ช่องโหว่`
+      );
+
+      setLocalVulnerabilities(result.data);
       setScanFromCache(false);
       setViewingHistoryVersion(version.version_id);
+
+      // Store historical analysis for DependenciesTab
+      setHistoricalAnalysis(historicalAnalysis);
 
       // Switch to security tab to view details
       setActiveTab('security');
 
       window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // Reset progress after delay
+      setTimeout(() => {
+        setScanStep("idle");
+        setScanMessage("");
+      }, 3000);
+
     } catch (err: any) {
       console.error("Failed to load version", err);
       setLocalError(err.message || "Failed to load historical version");
+      setScanStep("idle");
+      setScanMessage("");
     } finally {
       setLocalIsScanning(false);
     }
@@ -331,6 +388,7 @@ export default function DependenciesPage() {
                     className="btn btn-sm btn-ghost hover:bg-warning/20"
                     onClick={() => {
                       setViewingHistoryVersion(null);
+                      setHistoricalAnalysis(null);
                       setLocalVulnerabilities(cachedVulnerabilities);
                       setActiveTab('security');
                     }}
@@ -383,7 +441,7 @@ export default function DependenciesPage() {
             <div className="rounded-b-box rounded-tr-box border-base-300 min-h-[500px]">
               {activeTab === 'dependencies' && (
                 <DependenciesTab
-                  analysis={analysis}
+                  analysis={viewingHistoryVersion ? historicalAnalysis : analysis}
                   onScan={handleVulnerabilityScan}
                   isScanning={localIsScanning}
                 />

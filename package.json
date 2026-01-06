@@ -11,7 +11,7 @@
   "dependencies": {
     "@lottiefiles/dotlottie-react": "^0.17.10",
     "@types/jsonwebtoken": "^9.0.10",
-    "baseline-browser-mapping": "^2.9.4",
+    "baseline-browser-mapping": "^2.9.11",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "d3": "^7.9.0",

@@ -35,7 +35,7 @@ export const HierarchicalEdgeBundling: React.FC<HierarchicalEdgeBundlingProps> =
     const svgRef = useRef<SVGSVGElement>(null);
 
     const [data, setData] = useState<RawData[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     // Repo selection state
@@ -351,43 +351,44 @@ export const HierarchicalEdgeBundling: React.FC<HierarchicalEdgeBundlingProps> =
 
     }, [data]);
 
-    if (loading) return (
-        <div className="relative w-full h-full overflow-hidden bg-base-100 rounded-lg">
-            <VisualizationLoadingOverlay message="Loading visualization..." />
-        </div>
-    );
-    if (error) return (
-        <div className="flex items-center justify-center h-full bg-base-100 p-4">
-            <div className="alert alert-error max-w-md shadow-lg">
-                <AlertCircle className="w-5 h-5" />
-                <span>{error}</span>
-            </div>
-        </div>
-    );
-    if (!data.length) return (
-        <RepositoryEmptyState
-            selectedRepos={selectedRepos}
-            onSelectionChange={setSelectedRepos}
-            title="Select a Repository"
-            description="Choose one or more repositories from the dropdown above to visualize the radial dependency graph."
-            icon={
-                <svg className="w-10 h-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-                </svg>
-            }
-        />
-    );
+    // Check if showing empty state
+    const showEmptyState = !data.length && !loading && selectedRepos.length === 0;
 
     return (
-        <div className="w-full h-full overflow-hidden bg-base-100 rounded-lg flex justify-center items-center relative">
-            {/* Controls Bar */}
+        <div className="w-full h-full overflow-hidden bg-base-100 flex justify-center items-center relative">
+            {/* Controls Bar - Always visible, same instance */}
             <div className="absolute top-4 right-4 flex gap-2 z-10">
-                {/* Repo Selector Dropdown */}
                 <RepositorySelector
                     selectedRepos={selectedRepos}
                     onSelectionChange={setSelectedRepos}
                 />
             </div>
+
+            {/* Empty State Overlay */}
+            {showEmptyState && (
+                <RepositoryEmptyState
+                    title="Select a Repository"
+                    description="Choose one or more repositories from the dropdown above to visualize the radial dependency graph."
+                    icon={
+                        <svg className="w-10 h-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                        </svg>
+                    }
+                />
+            )}
+
+            {/* Loading Overlay */}
+            {loading && <VisualizationLoadingOverlay message="Loading visualization..." />}
+
+            {/* Error Overlay */}
+            {error && (
+                <div className="absolute inset-0 flex items-center justify-center bg-base-100/95 z-20">
+                    <div className="alert alert-error max-w-md shadow-lg">
+                        <AlertCircle className="w-5 h-5" />
+                        <span>{error}</span>
+                    </div>
+                </div>
+            )}
 
             {/* Radial Graph Canvas */}
             <svg ref={svgRef} className="w-full h-full bg-base-200/30"></svg>
@@ -406,3 +407,4 @@ export const HierarchicalEdgeBundling: React.FC<HierarchicalEdgeBundlingProps> =
         </div>
     );
 };
+

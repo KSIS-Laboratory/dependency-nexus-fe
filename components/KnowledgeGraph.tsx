@@ -319,32 +319,31 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
         return node.id;
     };
 
-    // Show empty state when no repos selected
-    if (nodes.length === 0 && !loading && selectedRepos.length === 0) {
-        return (
-            <RepositoryEmptyState
-                selectedRepos={selectedRepos}
-                onSelectionChange={setSelectedRepos}
-                title="Select a Repository"
-                description="Choose one or more repositories from the dropdown above to visualize the knowledge graph."
-                icon={
-                    <svg className="w-10 h-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-                    </svg>
-                }
-            />
-        );
-    }
+    // Check if showing empty state
+    const showEmptyState = nodes.length === 0 && !loading && selectedRepos.length === 0;
 
     return (
-        <div className="relative h-full overflow-hidden bg-base-100 rounded-lg">
-            {/* Controls Bar */}
+        <div className="relative h-full overflow-hidden bg-base-100">
+            {/* Controls Bar - Always visible, same instance */}
             <div className="absolute top-4 right-4 z-10 flex gap-2">
                 <RepositorySelector
                     selectedRepos={selectedRepos}
                     onSelectionChange={setSelectedRepos}
                 />
             </div>
+
+            {/* Empty State Overlay */}
+            {showEmptyState && (
+                <RepositoryEmptyState
+                    title="Select a Repository"
+                    description="Choose one or more repositories from the dropdown above to visualize the knowledge graph."
+                    icon={
+                        <svg className="w-10 h-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                        </svg>
+                    }
+                />
+            )}
 
             {/* Loading Overlay */}
             {loading && <VisualizationLoadingOverlay message="Loading graph data..." />}
@@ -388,3 +387,4 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
 };
 
 export default KnowledgeGraph;
+

@@ -38,8 +38,8 @@ export const DependenciesTab: React.FC<DependenciesTabProps> = ({
                     {/* Left Column: Dependency Files */}
                     <div className="lg:col-span-4 xl:col-span-3">
                         <div className="sticky top-24 space-y-6">
-                            <div className="glass rounded-2xl">
-                                <div className="card-body p-5">
+                            <div className="bg-base-200 rounded-2xl">
+                                <div className=" p-5">
                                     <h3 className="font-bold text-lg flex items-center gap-2 text-base-content mb-4">
                                         <FileCode className="h-5 w-5 text-primary" />
                                         Files

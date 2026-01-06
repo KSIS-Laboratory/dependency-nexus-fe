@@ -2,12 +2,14 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
-import { RefreshCw, AlertTriangle, Grid3X3, X } from "lucide-react";
+import { AlertTriangle, Grid3X3, X } from "lucide-react";
 import { VisualizationLoadingOverlay } from "@/components/VisualizationLoadingOverlay";
 import { RepositorySelector } from "@/components/RepositorySelector";
 import { RepositoryEmptyState } from "@/components/RepositoryEmptyState";
 import { VulnerabilityDetailModal } from "@/components/VulnerabilityDetailModal";
 import { API_URL, API_ENDPOINTS } from "@/lib/constants";
+import { HEATMAP_QUERY_REPOS } from "@/lib/graph-queries";
+import { SEVERITY_COLORS } from "@/lib/severity";
 
 interface SecurityHeatmapProps {
     width?: number;
@@ -28,26 +30,6 @@ interface RepoSummary {
     total: number;
     vulnerabilities: VulnInfo[];
 }
-
-// Cypher query that returns vulnerability IDs
-const HEATMAP_QUERY_REPOS = `
-  MATCH (r:Repository)-[:HAS_SCAN]->(s:Scan)-[:INCLUDES_PACKAGE]->(p:Package)
-  WHERE r.name IN $repoNames
-  OPTIONAL MATCH (p)-[:AFFECTS]-(v:Vulnerability)
-  WHERE v IS NOT NULL
-  RETURN r.name as repo, v.id as vulnId, v.severity as severity
-  ORDER BY repo, severity
-`;
-
-// Severity colors - matching DaisyUI theme
-const SEVERITY_COLORS: Record<string, string> = {
-    CRITICAL: "#ef4444",
-    HIGH: "#f59e0b",
-    MODERATE: "#2dd4bf",
-    MEDIUM: "#2dd4bf",
-    LOW: "#3b82f6",
-    UNKNOWN: "#6b7280",
-};
 
 export function SecurityHeatmap({
     width = 900,
@@ -367,18 +349,8 @@ export function SecurityHeatmap({
 
     const handleRepoSelectionChange = (repos: string[]) => setSelectedRepos(repos);
 
-    // Empty state
-    if (selectedRepos.length === 0 && !loading) {
-        return (
-            <RepositoryEmptyState
-                selectedRepos={selectedRepos}
-                onSelectionChange={handleRepoSelectionChange}
-                title="Select Repositories"
-                description="Choose one or more repositories to visualize the security heatmap."
-                icon={<Grid3X3 className="w-10 h-10 text-primary" />}
-            />
-        );
-    }
+    // Check if showing empty state
+    const showEmptyState = selectedRepos.length === 0 && !loading;
 
     // Totals
     const totals = {
@@ -390,22 +362,23 @@ export function SecurityHeatmap({
     const totalVulns = totals.critical + totals.high + totals.moderate + totals.low;
 
     return (
-        <div ref={containerRef} className="relative h-full overflow-hidden bg-base-100 rounded-lg">
+        <div ref={containerRef} className="relative h-full overflow-hidden bg-base-100">
             {/* Controls - Top Right */}
             <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
                 <RepositorySelector
                     selectedRepos={selectedRepos}
                     onSelectionChange={handleRepoSelectionChange}
                 />
-                <button
-                    onClick={fetchData}
-                    disabled={loading}
-                    className="btn btn-sm btn-circle bg-base-100/90 backdrop-blur-sm border-base-300 shadow-sm hover:bg-base-200"
-                    title="Refresh data"
-                >
-                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                </button>
             </div>
+
+            {/* Empty State Overlay */}
+            {showEmptyState && (
+                <RepositoryEmptyState
+                    title="Select Repositories"
+                    description="Choose one or more repositories to visualize the security heatmap."
+                    icon={<Grid3X3 className="w-10 h-10 text-primary" />}
+                />
+            )}
 
             {/* Loading Overlay */}
             {loading && <VisualizationLoadingOverlay message="Loading heatmap data..." />}

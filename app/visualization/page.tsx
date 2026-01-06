@@ -6,13 +6,14 @@ import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthService, User } from "@/lib/auth";
 import KnowledgeGraph from "@/components/KnowledgeGraph";
-import { ArrowLeft, Network, GitMerge, Share2, Info, ChevronRight, Home, Grid3X3 } from "lucide-react";
+import { ArrowLeft, Network, GitMerge, Share2, Info, ChevronRight, Home, Grid3X3, TrendingUp } from "lucide-react";
 import { HierarchicalEdgeBundling } from "@/components/HierarchicalEdgeBundling";
 import { CollapsibleTree } from "@/components/CollapsibleTree";
 import { SecurityHeatmap } from "@/components/SecurityHeatmap";
+import { TrendAnalysis } from "@/components/TrendAnalysis";
 import Link from "next/link";
 
-type TabId = 'force' | 'tree' | 'hierarchical' | 'heatmap';
+type TabId = 'force' | 'tree' | 'hierarchical' | 'heatmap' | 'trend';
 
 interface TabConfig {
     id: TabId;
@@ -28,7 +29,7 @@ export default function KnowledgeGraphPage() {
     const { isAuthenticated, isLoading } = useAuth();
     const [user, setUser] = useState<User | null>(null);
     const [activeTab, setActiveTab] = useState<TabId>('force');
-    const [showTips, setShowTips] = useState(true);
+    const [showTips, setShowTips] = useState(false);
 
     useEffect(() => {
         const loadUser = async () => {
@@ -102,6 +103,19 @@ export default function KnowledgeGraphPage() {
                 'Summary stats at the bottom'
             ]
         },
+        {
+            id: 'trend',
+            label: 'Trend Analysis',
+            shortLabel: 'Trend',
+            icon: TrendingUp,
+            description: 'Track vulnerability counts over time to see if security is improving or declining.',
+            tips: [
+                'Shows vulnerability trends over scan history',
+                'Stacked areas show severity breakdown',
+                'Trend indicator shows overall direction',
+                'Hover points for detailed breakdown'
+            ]
+        },
     ];
 
     const activeTabConfig = tabs.find(t => t.id === activeTab)!;
@@ -128,7 +142,6 @@ export default function KnowledgeGraphPage() {
                                     </Link>
                                 </li>
                                 <li className="flex items-center">
-                                    <ChevronRight className="w-3.5 h-3.5 text-base-content/40 mx-1" />
                                     <span className="text-base-content font-medium">Visualization</span>
                                 </li>
                             </ul>
@@ -215,12 +228,12 @@ export default function KnowledgeGraphPage() {
                 </div>
 
                 {/* Visualization Card */}
-                <div className="card bg-base-100 shadow-lg rounded-lg">
+                <div className="card bg-base-100 shadow-lg rounded-lg overflow-hidden">
                     {/* Active Tab Indicator Bar */}
-                    <div className="h-1 bg-linear-to-r from-primary via-secondary to-accent rounded-lg"></div>
+                    <div className="h-1 bg-linear-to-r from-primary via-secondary to-accent"></div>
 
                     {/* Visualization Container - Responsive Height */}
-                    <div className="w-full h-[calc(100vh-320px)] min-h-[500px] max-h-[800px] bg-base-100 relative rounded-lg">
+                    <div className="w-full h-[calc(100vh-320px)] min-h-[500px] max-h-[800px] bg-base-100 relative">
                         {/* Tab Content with Fade Transition */}
                         <div className="absolute inset-0 transition-opacity duration-300">
                             {activeTab === 'force' && (
@@ -235,22 +248,20 @@ export default function KnowledgeGraphPage() {
                             {activeTab === 'heatmap' && (
                                 <SecurityHeatmap width={1100} height={600} />
                             )}
+                            {activeTab === 'trend' && (
+                                <TrendAnalysis />
+                            )}
                         </div>
                     </div>
 
                     {/* Bottom Status Bar */}
                     <div className="px-4 py-2 bg-base-200/50 border-t border-base-300 flex items-center justify-between text-xs text-base-content/60">
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 ">
                             <span className="flex items-center gap-1.5">
                                 <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
                                 <span>Ready</span>
                             </span>
                             <span className="hidden sm:inline">Current View: <span className="font-medium text-base-content">{activeTabConfig.label}</span></span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <span className="hidden md:inline">Scroll to zoom • Drag to pan</span>
-                            <kbd className="kbd kbd-xs">?</kbd>{' '}
-                            <span className="hidden sm:inline">for help</span>
                         </div>
                     </div>
                 </div>

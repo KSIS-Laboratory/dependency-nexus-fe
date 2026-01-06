@@ -10,6 +10,8 @@ interface RepositorySelectorProps {
     onSelectionChange: (repos: string[]) => void;
     multiSelect?: boolean;
     className?: string;
+    /** Use full_name (owner/repo) format instead of just repo name */
+    useFullName?: boolean;
 }
 
 export const RepositorySelector: React.FC<RepositorySelectorProps> = ({
@@ -17,6 +19,7 @@ export const RepositorySelector: React.FC<RepositorySelectorProps> = ({
     onSelectionChange,
     multiSelect = true,
     className = "",
+    useFullName = false,
 }) => {
     const { githubToken } = useAuth();
     const [availableRepos, setAvailableRepos] = useState<string[]>([]);
@@ -39,7 +42,7 @@ export const RepositorySelector: React.FC<RepositorySelectorProps> = ({
                     // Filter only repositories that have scan history
                     const scannedRepos = data.repositories
                         .filter((r: any) => r.has_history)
-                        .map((r: any) => r.name);
+                        .map((r: any) => useFullName ? r.full_name : r.name);
                     setAvailableRepos(scannedRepos);
                 }
             } else {
@@ -118,7 +121,7 @@ export const RepositorySelector: React.FC<RepositorySelectorProps> = ({
                                         {error}
                                         <button
                                             className="btn btn-xs btn-ghost mt-2"
-                                            onClick={(e) => { e.stopPropagation(); fetchRepos(); }}
+                                            onClick={(e) => { fetchRepos(); }}
                                         >
                                             Retry
                                         </button>
@@ -167,14 +170,6 @@ export const RepositorySelector: React.FC<RepositorySelectorProps> = ({
                         </>
                     )}
                 </div>
-
-                <button
-                    onClick={fetchRepos}
-                    className="btn btn-sm btn-circle bg-base-100 shadow-md border-base-300 hover:bg-base-200 transition-all"
-                    title="Refresh Repositories"
-                >
-                    <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-                </button>
             </div>
         </div>
     );

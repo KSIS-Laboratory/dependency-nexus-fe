@@ -204,3 +204,12 @@ export const FULL_LEGEND_ITEMS = [
   { label: "Low", colorClass: "bg-info" },
   { label: "Scan", colorClass: "bg-success" },
 ];
+
+export const SEVERITY_COLORS: Record<string, string> = {
+    CRITICAL: "#ef4444",
+    HIGH: "#f59e0b",
+    MODERATE: "#2dd4bf",
+    MEDIUM: "#2dd4bf",
+    LOW: "#3b82f6",
+    UNKNOWN: "#6b7280",
+};
