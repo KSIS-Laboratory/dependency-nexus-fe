@@ -6,12 +6,14 @@ import { RefreshCw } from "lucide-react";
 import { VisualizationLoadingOverlay } from "@/components/VisualizationLoadingOverlay";
 import { API_URL, API_ENDPOINTS } from "@/lib/constants";
 import { GraphLegend } from "@/components/GraphLegend";
-import { KNOWLEDGE_GRAPH_QUERY, KNOWLEDGE_GRAPH_DEFAULT_QUERY, KNOWLEDGE_GRAPH_REPO_QUERY } from "@/lib/graph-queries";
+import { KNOWLEDGE_GRAPH_QUERY, KNOWLEDGE_GRAPH_DEFAULT_QUERY, KNOWLEDGE_GRAPH_REPO_QUERY, KNOWLEDGE_GRAPH_BY_SCANS } from "@/lib/graph-queries";
 import { VulnerabilityDetailModal } from "@/components/VulnerabilityDetailModal";
 import { getSeverityHexColor, getNodeTypeHexColor, FULL_LEGEND_ITEMS } from "@/lib/severity";
 
 import { RepositorySelector } from "./RepositorySelector";
 import { RepositoryEmptyState } from "./RepositoryEmptyState";
+import { ScanVersionSelector } from "./ScanVersionSelector";
+import { MultiRepoVersionSelector } from "./MultiRepoVersionSelector";
 
 interface KnowledgeGraphProps {
     width?: number;
@@ -49,6 +51,9 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     // Vulnerability modal state
     const [selectedVulnId, setSelectedVulnId] = useState<string | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // Version selection state: maps repoId -> {versionId, scanId}
+    const [selectedVersions, setSelectedVersions] = useState<Record<string, { versionId: string; scanId: string }>>({});
 
 
 
@@ -116,7 +121,17 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
             let cypherQuery = KNOWLEDGE_GRAPH_DEFAULT_QUERY;
             let parameters: any = undefined;
 
-            if (selectedRepos.length > 0) {
+            // Check if we have version selections for all repos
+            const scanIds = selectedRepos
+                .map(repo => selectedVersions[repo]?.scanId)
+                .filter(Boolean) as string[];
+            const useVersionFilter = scanIds.length > 0 && scanIds.length === selectedRepos.length;
+
+            if (useVersionFilter) {
+                // Use version-filtered query
+                cypherQuery = KNOWLEDGE_GRAPH_BY_SCANS;
+                parameters = { scanIds };
+            } else if (selectedRepos.length > 0) {
                 cypherQuery = KNOWLEDGE_GRAPH_REPO_QUERY;
                 parameters = { repoNames: selectedRepos };
             } else if (userName) {
@@ -161,7 +176,7 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
             setLinks([]);
             setLoading(false);
         }
-    }, [selectedRepos]);
+    }, [selectedRepos, selectedVersions]);
 
     useEffect(() => {
         if (!svgRef.current || nodes.length === 0) return;
@@ -322,13 +337,48 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     // Check if showing empty state
     const showEmptyState = nodes.length === 0 && !loading && selectedRepos.length === 0;
 
+    // Handle repo selection change - preserves versions for repos that remain selected
+    const handleRepoSelectionChange = (repos: string[]) => {
+        setSelectedVersions(prev => {
+            const newVersions: Record<string, { versionId: string; scanId: string }> = {};
+            for (const repo of repos) {
+                if (prev[repo]) {
+                    newVersions[repo] = prev[repo];
+                }
+            }
+            return newVersions;
+        });
+        setSelectedRepos(repos);
+    };
+
     return (
         <div className="relative h-full overflow-hidden bg-base-100">
             {/* Controls Bar - Always visible, same instance */}
             <div className="absolute top-4 right-4 z-10 flex gap-2">
+                {/* Version selector - single repo uses simple selector, multi uses panel */}
+                {selectedRepos.length === 1 && (
+                    <ScanVersionSelector
+                        repositoryId={selectedRepos[0]}
+                        selectedVersionId={selectedVersions[selectedRepos[0]]?.versionId ?? null}
+                        onVersionChange={(versionId, scanId) => {
+                            setSelectedVersions(prev => ({
+                                ...prev,
+                                [selectedRepos[0]]: { versionId, scanId }
+                            }));
+                        }}
+                    />
+                )}
+                {selectedRepos.length > 1 && (
+                    <MultiRepoVersionSelector
+                        repositoryIds={selectedRepos}
+                        selectedVersions={selectedVersions}
+                        onVersionsChange={setSelectedVersions}
+                    />
+                )}
                 <RepositorySelector
                     selectedRepos={selectedRepos}
-                    onSelectionChange={setSelectedRepos}
+                    onSelectionChange={handleRepoSelectionChange}
+                    useFullName={true}
                 />
             </div>
 

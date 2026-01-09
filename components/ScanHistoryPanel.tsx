@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { GitBranch, Package, TrendingUp, TrendingDown, AlertCircle, History, Clock, ChevronDown, Eye, ArrowRightLeft } from "lucide-react";
+import { GitBranch, Package, CirclePlus, CircleMinus, Diff, TrendingUp, TrendingDown, AlertCircle, History, Clock, ChevronDown, Eye, ArrowRightLeft } from "lucide-react";
 import { useScanHistory } from "@/hooks/useScanHistory";
 import type { DependencyScanVersion } from "@/lib/scan-history";
 import { EmptyState } from "@/components/EmptyState";
@@ -107,9 +107,9 @@ export function ScanHistoryPanel({
   const getChangeIcon = (changeType: string) => {
     switch (changeType) {
       case "added":
-        return <TrendingUp className="h-4 w-4 text-success" />;
+        return <CirclePlus className="h-4 w-4 text-success" />;
       case "removed":
-        return <TrendingDown className="h-4 w-4 text-error" />;
+        return <CircleMinus className="h-4 w-4 text-error" />;
       case "updated":
         return <AlertCircle className="h-4 w-4 text-warning" />;
       default:
@@ -155,7 +155,7 @@ export function ScanHistoryPanel({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Latest Scan Summary */}
         {latestScan && (
-          <div className="card bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20">
+          <div className="card bg-linear-to-br from-primary/5 to-primary/10 border border-primary/20">
             <div className="card-body p-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-primary flex items-center gap-2">
@@ -271,7 +271,7 @@ export function ScanHistoryPanel({
           <div className="card-body p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-success" />
+                <Diff className="h-5 w-5 text-success" />
                 Comparison Results
               </h3>
               <button
@@ -285,14 +285,14 @@ export function ScanHistoryPanel({
             {/* Change Summary */}
             <div className="grid grid-cols-3 gap-3 mb-4">
               <div className="flex items-center gap-3 p-3 bg-success/10 rounded-xl">
-                <TrendingUp className="h-6 w-6 text-success" />
+                <CirclePlus className="h-6 w-6 text-success" />
                 <div>
                   <div className="text-2xl font-bold text-success">{comparison.added_count}</div>
                   <div className="text-xs text-success/70">Added</div>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 bg-error/10 rounded-xl">
-                <TrendingDown className="h-6 w-6 text-error" />
+                <CircleMinus className="h-6 w-6 text-error" />
                 <div>
                   <div className="text-2xl font-bold text-error">{comparison.removed_count}</div>
                   <div className="text-xs text-error/70">Removed</div>

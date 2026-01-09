@@ -40,7 +40,7 @@ export const ChatRepoSelector: React.FC<ChatRepoSelectorProps> = ({
                 if (data.repositories && Array.isArray(data.repositories)) {
                     const scannedRepos = data.repositories
                         .filter((r: { has_history?: boolean }) => r.has_history)
-                        .map((r: { name: string }) => r.name);
+                        .map((r: { full_name: string; name: string }) => r.full_name || r.name);
                     setAvailableRepos(scannedRepos);
                 }
             } else {
@@ -75,7 +75,7 @@ export const ChatRepoSelector: React.FC<ChatRepoSelectorProps> = ({
             return (
                 <div className="p-3 text-center text-xs text-base-content/60">
                     <span className="loading loading-spinner loading-xs mr-2" />
-                    <span>กำลังโหลด...</span>
+                    <span>Loading...</span>
                 </div>
             );
         }
@@ -91,7 +91,7 @@ export const ChatRepoSelector: React.FC<ChatRepoSelectorProps> = ({
         if (availableRepos.length === 0) {
             return (
                 <div className="p-3 text-center text-xs text-base-content/60">
-                    <span>ไม่พบ repository ที่ scan แล้ว</span>
+                    <span>No scanned repositories found</span>
                 </div>
             );
         }
@@ -147,7 +147,7 @@ export const ChatRepoSelector: React.FC<ChatRepoSelectorProps> = ({
                     type="button"
                     onClick={() => onSelectionChange(null)}
                     className="btn btn-xs btn-circle btn-ghost ml-1"
-                    title="ล้าง context"
+                    title="Clear context"
                 >
                     <X className="w-3 h-3" />
                 </button>
@@ -169,13 +169,13 @@ export const ChatRepoSelector: React.FC<ChatRepoSelectorProps> = ({
                         {/* Header */}
                         <div className="sticky top-0 bg-base-100 border-b border-base-200 p-2 flex justify-between items-center z-50">
                             <span className="text-xs font-medium text-base-content/70">
-                                เลือก Repository Context
+                                Select Repository Context
                             </span>
                             <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); fetchRepos(); }}
                                 className="btn btn-xs btn-circle btn-ghost"
-                                title="รีเฟรช"
+                                title="Refresh"
                             >
                                 <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
                             </button>

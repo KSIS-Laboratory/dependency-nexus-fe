@@ -23,12 +23,12 @@ export interface ChatSession {
 // Processing step types for showing LLM progress
 export type ProcessingStep = 
   | "idle"
-  | "analyzing"      // กำลังวิเคราะห์คำถาม
-  | "searching"      // กำลังค้นหาด้วย Hybrid RAG (semantic + graph)
-  | "fetching"       // กำลังดึงข้อมูล context
-  | "extracting"     // กำลัง extract vulnerability data
-  | "generating"     // กำลังสร้างคำตอบ
-  | "finalizing";    // กำลังสรุปผล
+  | "analyzing"      // Analyzing question
+  | "searching"      // Searching with Hybrid RAG (semantic + graph)
+  | "fetching"       // Fetching context data
+  | "extracting"     // Extracting vulnerability data
+  | "generating"     // Generating response
+  | "finalizing";    // Finalizing result
 
 export interface ProcessingState {
   step: ProcessingStep;
@@ -38,12 +38,12 @@ export interface ProcessingState {
 
 const STEP_MESSAGES: Record<ProcessingStep, string> = {
   idle: "",
-  analyzing: "กำลังวิเคราะห์คำถาม...",
-  searching: "กำลังค้นหาด้วย Hybrid RAG...",
-  fetching: "กำลังดึงข้อมูลจาก Knowledge Graph...",
-  extracting: "กำลัง Extract ข้อมูล Vulnerability...",
-  generating: "กำลังสร้างคำตอบ...",
-  finalizing: "กำลังสรุปผลลัพธ์...",
+  analyzing: "Analyzing question...",
+  searching: "Searching with Hybrid RAG...",
+  fetching: "Fetching from Knowledge Graph...",
+  extracting: "Extracting vulnerability data...",
+  generating: "Generating response...",
+  finalizing: "Finalizing result...",
 };
 
 // LocalStorage keys

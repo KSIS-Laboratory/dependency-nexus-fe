@@ -17,20 +17,20 @@ interface ScanProgressIndicatorProps {
 }
 
 const SCAN_STEPS: { step: ScanStep; label: string; icon: React.ReactNode }[] = [
-    { step: "collecting", label: "รวบรวม Dependencies", icon: <Package className="h-4 w-4" /> },
-    { step: "scanning", label: "สแกน Vulnerabilities", icon: <Shield className="h-4 w-4" /> },
+    { step: "collecting", label: "Collect Dependencies", icon: <Package className="h-4 w-4" /> },
+    { step: "scanning", label: "Scan Vulnerabilities", icon: <Shield className="h-4 w-4" /> },
     { step: "indexing", label: "Index to Graph", icon: <Database className="h-4 w-4" /> },
-    { step: "vectorizing", label: "Hybrid RAG", icon: <Brain className="h-4 w-4" /> },
-    { step: "complete", label: "เสร็จสิ้น", icon: <CheckCircle2 className="h-4 w-4" /> },
+    { step: "vectorizing", label: "Vectorizing", icon: <Brain className="h-4 w-4" /> },
+    { step: "complete", label: "Complete", icon: <CheckCircle2 className="h-4 w-4" /> },
 ];
 
 const STEP_MESSAGES: Record<ScanStep, string> = {
     idle: "",
-    collecting: "กำลังรวบรวม dependencies จากโปรเจค...",
-    scanning: "กำลังสแกนหาช่องโหว่ใน dependencies...",
-    indexing: "กำลัง index ข้อมูลไปยัง Knowledge Graph...",
-    vectorizing: "กำลัง sync ไปยัง Vector Database สำหรับ Hybrid RAG...",
-    complete: "สแกนเสร็จสิ้น!",
+    collecting: "Collecting dependencies from project...",
+    scanning: "Scanning vulnerabilities...",
+    indexing: "Indexing to Graph...",
+    vectorizing: "Vectorizing...",
+    complete: "Scan complete!",
 };
 
 export function ScanProgressIndicator({ currentStep, message }: Readonly<ScanProgressIndicatorProps>) {

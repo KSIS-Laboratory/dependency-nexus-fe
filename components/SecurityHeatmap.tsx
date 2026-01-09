@@ -7,8 +7,10 @@ import { VisualizationLoadingOverlay } from "@/components/VisualizationLoadingOv
 import { RepositorySelector } from "@/components/RepositorySelector";
 import { RepositoryEmptyState } from "@/components/RepositoryEmptyState";
 import { VulnerabilityDetailModal } from "@/components/VulnerabilityDetailModal";
+import { ScanVersionSelector } from "@/components/ScanVersionSelector";
+import { MultiRepoVersionSelector } from "@/components/MultiRepoVersionSelector";
 import { API_URL, API_ENDPOINTS } from "@/lib/constants";
-import { HEATMAP_QUERY_REPOS } from "@/lib/graph-queries";
+import { HEATMAP_QUERY_REPOS, HEATMAP_QUERY_BY_SCANS } from "@/lib/graph-queries";
 import { SEVERITY_COLORS } from "@/lib/severity";
 
 interface SecurityHeatmapProps {
@@ -50,6 +52,9 @@ export function SecurityHeatmap({
     // Panel state for showing vulnerability list
     const [selectedCell, setSelectedCell] = useState<{ repo: string; severity: string; vulns: VulnInfo[] } | null>(null);
 
+    // Version selection state: maps repoId -> {versionId, scanId}
+    const [selectedVersions, setSelectedVersions] = useState<Record<string, { versionId: string; scanId: string }>>({});
+
     const severityLevels = ["CRITICAL", "HIGH", "MODERATE", "LOW"];
 
     const fetchData = async () => {
@@ -62,14 +67,24 @@ export function SecurityHeatmap({
         setError(null);
 
         try {
+            // Determine which query to use based on version selections
+            const scanIds = selectedRepos
+                .map(repo => selectedVersions[repo]?.scanId)
+                .filter(Boolean) as string[];
+
+            // Use version-filtered query if we have scan IDs, otherwise use repo-based query
+            const useVersionFilter = scanIds.length > 0 && scanIds.length === selectedRepos.length;
+
             const response = await fetch(
                 `${API_URL}${API_ENDPOINTS.CHATBOT.KNOWLEDGE_QUERY}`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        cypher_query: HEATMAP_QUERY_REPOS,
-                        parameters: { repoNames: selectedRepos },
+                        cypher_query: useVersionFilter ? HEATMAP_QUERY_BY_SCANS : HEATMAP_QUERY_REPOS,
+                        parameters: useVersionFilter
+                            ? { scanIds }
+                            : { repoNames: selectedRepos },
                     }),
                 }
             );
@@ -80,6 +95,20 @@ export function SecurityHeatmap({
 
             const result = await response.json();
             const repoMap = new Map<string, RepoSummary>();
+
+            // Initialize all selected repos with empty data first
+            for (const repoId of selectedRepos) {
+                const repoName = repoId.includes('/') ? repoId.split('/')[1] : repoId;
+                repoMap.set(repoName, {
+                    repo: repoName,
+                    critical: 0,
+                    high: 0,
+                    moderate: 0,
+                    low: 0,
+                    total: 0,
+                    vulnerabilities: []
+                });
+            }
 
             for (const record of result.results || []) {
                 const repo = record.repo || "Unknown";
@@ -128,7 +157,7 @@ export function SecurityHeatmap({
             setData([]);
             setLoading(false);
         }
-    }, [selectedRepos]);
+    }, [selectedRepos, selectedVersions]);
 
     const getCountForSeverity = (d: RepoSummary, severity: string): number => {
         switch (severity) {
@@ -347,7 +376,19 @@ export function SecurityHeatmap({
 
     }, [data, width, height]);
 
-    const handleRepoSelectionChange = (repos: string[]) => setSelectedRepos(repos);
+    const handleRepoSelectionChange = (repos: string[]) => {
+        // Only keep versions for repos that are still selected
+        setSelectedVersions(prev => {
+            const newVersions: Record<string, { versionId: string; scanId: string }> = {};
+            for (const repo of repos) {
+                if (prev[repo]) {
+                    newVersions[repo] = prev[repo];
+                }
+            }
+            return newVersions;
+        });
+        setSelectedRepos(repos);
+    };
 
     // Check if showing empty state
     const showEmptyState = selectedRepos.length === 0 && !loading;
@@ -365,9 +406,30 @@ export function SecurityHeatmap({
         <div ref={containerRef} className="relative h-full overflow-hidden bg-base-100">
             {/* Controls - Top Right */}
             <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+                {/* Version selector - single repo uses simple selector, multi uses panel */}
+                {selectedRepos.length === 1 && (
+                    <ScanVersionSelector
+                        repositoryId={selectedRepos[0]}
+                        selectedVersionId={selectedVersions[selectedRepos[0]]?.versionId ?? null}
+                        onVersionChange={(versionId, scanId) => {
+                            setSelectedVersions(prev => ({
+                                ...prev,
+                                [selectedRepos[0]]: { versionId, scanId }
+                            }));
+                        }}
+                    />
+                )}
+                {selectedRepos.length > 1 && (
+                    <MultiRepoVersionSelector
+                        repositoryIds={selectedRepos}
+                        selectedVersions={selectedVersions}
+                        onVersionsChange={setSelectedVersions}
+                    />
+                )}
                 <RepositorySelector
                     selectedRepos={selectedRepos}
                     onSelectionChange={handleRepoSelectionChange}
+                    useFullName={true}
                 />
             </div>
 

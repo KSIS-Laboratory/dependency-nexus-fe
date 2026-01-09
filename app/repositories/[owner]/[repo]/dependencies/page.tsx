@@ -113,13 +113,13 @@ export default function DependenciesPage() {
 
         // Step 1: Collecting
         setScanStep("collecting");
-        setScanMessage(`รวบรวม ${allPackages.length} packages จาก ${validEntries.length} ไฟล์...`);
+        setScanMessage(`Collecting ${allPackages.length} packages from ${validEntries.length} files...`);
         await new Promise(resolve => setTimeout(resolve, 500));
 
         try {
           // Step 2: Scanning
           setScanStep("scanning");
-          setScanMessage(`กำลังสแกน ${allPackages.length} packages หาช่องโหว่...`);
+          setScanMessage(`Scanning ${allPackages.length} packages...`);
 
           // Use smart scan that checks cache first
           const result = await VulnerabilityAPIService.smartScanPackages(
@@ -131,20 +131,20 @@ export default function DependenciesPage() {
           // Step 3: Indexing (if not from cache)
           if (!result.fromCache) {
             setScanStep("indexing");
-            setScanMessage("กำลัง index ข้อมูลไปยัง Knowledge Graph...");
+            setScanMessage("Indexing to Knowledge Graph...");
             await new Promise(resolve => setTimeout(resolve, 800));
 
             // Step 4: Vectorizing
             setScanStep("vectorizing");
-            setScanMessage("กำลัง sync ไปยัง Vector Database สำหรับ Semantic Search...");
+            setScanMessage("Syncing to Vector Database for Semantic Search...");
             await new Promise(resolve => setTimeout(resolve, 600));
           }
 
           // Step 5: Complete
           setScanStep("complete");
           setScanMessage(result.fromCache
-            ? `ใช้ผลสแกนจาก cache - พบ ${result.data?.total_vulnerabilities || 0} ช่องโหว่`
-            : `สแกนเสร็จสิ้น - พบ ${result.data?.total_vulnerabilities || 0} ช่องโหว่`
+            ? `Using cached scan result - Found ${result.data?.total_vulnerabilities || 0} vulnerabilities`
+            : `Scan complete - Found ${result.data?.total_vulnerabilities || 0} vulnerabilities`
           );
 
           setLocalVulnerabilities(result.data);
@@ -187,7 +187,7 @@ export default function DependenciesPage() {
 
     // Step 1: Set scan progress
     setScanStep("scanning");
-    setScanMessage(`กำลังสแกน ${version.dependencies.length} packages จาก version ${version.version_id}...`);
+    setScanMessage(`Scanning ${version.dependencies.length} packages from version ${version.version_id}...`);
 
     try {
       // Convert DependencyItem[] to PackageQuery[]
@@ -198,21 +198,30 @@ export default function DependenciesPage() {
       }));
 
       // Step 2: Create historical analysis structure for DependenciesTab display
-      // Group dependencies by package_manager (which is used as filename key)
-      const historicalDependencies: Record<string, Record<string, string>> = {};
+      // Group dependencies by file_path, then wrap in "dependencies" section
+      const historicalDependencies: Record<string, Record<string, Record<string, string>>> = {};
       const historicalFiles: Record<string, any> = {};
+      const fileSizes: Record<string, number> = {};
 
       version.dependencies.forEach((dep: any) => {
         const filename = dep.file_path || `${dep.package_manager}.json`;
         if (!historicalDependencies[filename]) {
-          historicalDependencies[filename] = {};
+          historicalDependencies[filename] = { dependencies: {} };
           historicalFiles[filename] = {
             path: filename,
             size: 0,
-            type: dep.package_manager
+            type: dep.package_manager || "npm"
           };
+          fileSizes[filename] = 0;
         }
-        historicalDependencies[filename][dep.name] = dep.version;
+        historicalDependencies[filename].dependencies[dep.name] = dep.version || "*";
+        // Estimate file size based on content
+        fileSizes[filename] += (dep.name.length + (dep.version?.length || 1) + 10);
+      });
+
+      // Update file sizes
+      Object.keys(historicalFiles).forEach(filename => {
+        historicalFiles[filename].size = fileSizes[filename] || 100;
       });
 
       // Create a synthetic analysis structure that DependenciesTab can understand
@@ -239,8 +248,8 @@ export default function DependenciesPage() {
       setScanStep("complete");
       setScanMessage(
         result.updated
-          ? `พบ ${result.data.total_vulnerabilities} ช่องโหว่ใหม่ - อัปเดต version แล้ว`
-          : `สแกนเสร็จสิ้น - พบ ${result.data.total_vulnerabilities} ช่องโหว่`
+          ? `Found ${result.data.total_vulnerabilities} new vulnerabilities - updated version`
+          : `Scan complete - Found ${result.data.total_vulnerabilities} vulnerabilities`
       );
 
       setLocalVulnerabilities(result.data);

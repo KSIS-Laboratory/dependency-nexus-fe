@@ -1,22 +1,30 @@
 # Dependency Nexus - Frontend
 
-Next.js 16 frontend for Dependency Nexus with GitHub App authentication.
+Next.js 16 frontend for Dependency Nexus with GitHub App authentication, advanced visualizations, and AI-powered analysis.
 
 ## Features
 
-- **GitHub App authentication** - OAuth 2.0 with fine-grained permissions
-- **Automatic token refresh** - Seamless token renewal without re-login
-- **Modern UI** - Tailwind CSS with dark mode support
-- **Protected routes** - Authentication-based access control
-- **JWT token management** - Secure client-side token handling
-- **Responsive design** - Mobile-friendly interface
+- **GitHub App Authentication** - OAuth 2.0 with fine-grained permissions and automatic token refresh.
+- **AI Chatbot Assistant** - Interactive RAG-based chatbot (`ChatbotWidget`) that understands your repository context.
+- **Advanced Visualizations**:
+  - **Knowledge Graph** - Force-directed graph showing dependencies and their relationships.
+  - **Hierarchical Edge Bundling** - Circular layout to visualize complex inter-dependencies.
+  - **Collapsible Tree** - Interactive tree view for exploring dependency hierarchies.
+  - **Security Heatmap** - Visual representation of vulnerability density across repositories.
+  - **Trend Analysis** - Historical tracking of vulnerability metrics over time.
+- **Vulnerability Dashboard** - Comprehensive view of security risks, severity distribution, and remediation guides.
+- **Scan History** - Track and compare scan results over time.
+- **Multi-Repository Support** - Seamlessly switch and compare different repositories.
+- **Modern UI** - Built with **DaisyUI 5** and **Tailwind CSS 4**, featuring full dark mode and theme switching support.
 
 ## Tech Stack
 
 - **Framework**: Next.js 16 (App Router)
 - **Language**: TypeScript
-- **Styling**: Tailwind CSS 4
-- **UI Components**: DaisyUI, Lucide React
+- **Styling**: Tailwind CSS 4, DaisyUI 5
+- **Visualization**: D3.js, Recharts (if used in TrendAnalysis), React Force Graph
+- **Animation**: Framer Motion, Lottie React
+- **Icons**: Lucide React
 - **State Management**: React Hooks
 
 ## Setup
@@ -33,7 +41,7 @@ Next.js 16 frontend for Dependency Nexus with GitHub App authentication.
    cp env.example .env.local
    ```
    
-   Edit `.env.local` with your backend API URL (see `../OAUTH_SETUP.md` for details).
+   Edit `.env.local` with your backend API URL.
 
 3. **Run the development server:**
    ```bash
@@ -51,67 +59,45 @@ Next.js 16 frontend for Dependency Nexus with GitHub App authentication.
 app/
 ├── auth/
 │   └── callback/      # OAuth callback handler
-│       └── page.tsx
-├── dashboard/         # Protected dashboard
-│   └── page.tsx
-├── layout.tsx         # Root layout
-├── page.tsx           # Login page
-└── globals.css        # Global styles
+├── dashboard/         # Main dashboard overview
+├── repositories/      # Repository list and details
+├── visualization/     # Advanced graph visualizations
+├── layout.tsx         # Root layout with providers
+└── page.tsx           # Landing/Login page
+
+components/
+├── visualization/     # Graph components (KnowledgeGraph, Heatmap, etc.)
+├── chatbot/           # Chatbot widget and related components
+├── dashboard/         # Dashboard widgets (Stats, Trends, etc.)
+├── ChatbotWidget.tsx  # Main AI assistant component
+├── KnowledgeGraph.tsx # Force-directed dependency graph
+├── SecurityHeatmap.tsx # Vulnerability density heatmap
+├── TrendAnalysis.tsx  # Vulnerability trend charts
+└── ...
 
 lib/
 ├── auth.ts            # Authentication service
+├── chatbot.ts         # Chatbot API integration
+├── graph-queries.ts   # Neo4j/Graph data fetching
 └── utils.ts           # Utility functions
 ```
 
 ## Routes
 
-- `/` - Login page with GitHub OAuth button
-- `/auth/callback` - OAuth callback handler (automatic redirect)
-- `/dashboard` - Protected dashboard (requires authentication)
+- `/` - Login page
+- `/dashboard` - Main overview
+- `/repositories` - Repository management
+- `/repositories/[owner]/[repo]` - Single repository details
+- `/visualization` - Advanced dependency visualizations
 
 ## Authentication Flow
 
-1. User clicks "Continue with GitHub" on login page
-2. Redirected to backend GitHub App endpoint
-3. Backend redirects to GitHub for authorization (with fine-grained permissions)
-4. User authorizes the application
-5. GitHub redirects back to backend callback
-6. Backend exchanges code for **user access token + refresh token**
-7. Backend creates JWT containing both tokens
-8. Redirected to frontend callback with JWT token
-9. Tokens stored in localStorage (access + refresh + expiry)
-10. User redirected to dashboard
-
-### Automatic Token Refresh
-
-- GitHub App tokens expire after **8 hours**
-- Frontend automatically detects expiration
-- Uses refresh token to get new access token
-- User stays logged in without interruption
-- Refresh tokens valid for **6 months**
-
-## Development
-
-The application uses Next.js App Router with client-side rendering for authentication flows. All authentication state is managed through the `AuthService` utility.
-
-### Key Files
-
-- **`lib/auth.ts`** - Authentication service with token management
-- **`app/page.tsx`** - Login page with GitHub OAuth
-- **`app/auth/callback/page.tsx`** - Handles OAuth callback
-- **`app/dashboard/page.tsx`** - Protected dashboard page
-
-## Environment Variables
-
-See `env.example` for required environment variables:
-- `NEXT_PUBLIC_API_URL` - Backend API URL (default: http://localhost:8000)
+1. User clicks "Continue with GitHub".
+2. Redirects to Backend -> GitHub for authorization.
+3. Callback exchanges code for **access + refresh tokens**.
+4. Tokens stored securely with automatic expiration handling.
+5. **Auto-refresh** mechanism ensures seamless session continuity.
 
 ## Documentation
 
 For complete OAuth setup instructions, see [OAUTH_SETUP.md](../OAUTH_SETUP.md).
-
-## Learn More
-
-To learn more about Next.js, check out:
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Learn Next.js](https://nextjs.org/learn)

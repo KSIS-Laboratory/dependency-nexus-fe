@@ -144,27 +144,27 @@ interface ProcessingStepsIndicatorProps {
 }
 
 const PROCESSING_STEPS: { step: ProcessingStep; label: string; icon: React.ReactNode }[] = [
-  { step: "analyzing", label: "วิเคราะห์", icon: <Search className="h-3.5 w-3.5" /> },
-  { step: "searching", label: "Vector RAG", icon: <Database className="h-3.5 w-3.5" /> },
-  { step: "extracting", label: "Extract", icon: <FileJson className="h-3.5 w-3.5" /> },
-  { step: "fetching", label: "ดึงข้อมูล", icon: <Brain className="h-3.5 w-3.5" /> },
-  { step: "generating", label: "สร้างคำตอบ", icon: <Brain className="h-3.5 w-3.5" /> },
-  { step: "finalizing", label: "สรุป", icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
+  { step: "analyzing", label: "Analyzing", icon: <Search className="h-3.5 w-3.5" /> },
+  { step: "searching", label: "Searching", icon: <Database className="h-3.5 w-3.5" /> },
+  { step: "extracting", label: "Extracting", icon: <FileJson className="h-3.5 w-3.5" /> },
+  { step: "fetching", label: "Fetching", icon: <Brain className="h-3.5 w-3.5" /> },
+  { step: "generating", label: "Generating", icon: <Brain className="h-3.5 w-3.5" /> },
+  { step: "finalizing", label: "Finalizing", icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
 ];
 
 function ProcessingStepsIndicator({ currentStep, message }: Readonly<ProcessingStepsIndicatorProps>) {
   const currentIndex = PROCESSING_STEPS.findIndex((s) => s.step === currentStep);
 
   return (
-    <div className="flex flex-col gap-3 p-4 bg-base-200/50 rounded-xl border border-base-content/10">
+    <div className="flex flex-col gap-2">
       {/* Current step message */}
       <div className="flex items-center gap-2 text-sm text-primary font-medium">
         <Loader2 className="h-4 w-4 animate-spin" />
-        <span>{message || "กำลังประมวลผล..."}</span>
+        <span>{message || "Processing..."}</span>
       </div>
 
-      {/* Step indicators */}
-      <div className="flex items-center gap-1">
+      {/* Compact step indicators */}
+      <div className="flex items-center gap-0.5 flex-wrap">
         {PROCESSING_STEPS.map((stepInfo, index) => {
           const isActive = stepInfo.step === currentStep;
           const isCompleted = currentIndex > index;
@@ -175,25 +175,21 @@ function ProcessingStepsIndicator({ currentStep, message }: Readonly<ProcessingS
               {/* Step badge */}
               <div
                 className={`
-                  flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-all duration-300
-                  ${isActive ? "bg-primary text-primary-content scale-105 shadow-md" : ""}
+                  flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium transition-all duration-200
+                  ${isActive ? "bg-primary text-primary-content shadow-sm" : ""}
                   ${isCompleted ? "bg-success/20 text-success" : ""}
-                  ${isPending ? "bg-base-300 text-base-content/40" : ""}
+                  ${isPending ? "text-base-content/30" : ""}
                 `}
               >
-                {/* Step icon based on state */}
-                {isCompleted && <Check className="h-3 w-3" />}
+                {isCompleted && <Check className="h-2.5 w-2.5" />}
                 {isActive && <span className="animate-pulse">{stepInfo.icon}</span>}
                 {isPending && stepInfo.icon}
                 <span className="hidden sm:inline">{stepInfo.label}</span>
               </div>
 
-              {/* Connector line */}
+              {/* Connector */}
               {index < PROCESSING_STEPS.length - 1 && (
-                <div
-                  className={`w-4 h-0.5 mx-0.5 transition-colors duration-300 ${isCompleted ? "bg-success" : "bg-base-300"
-                    }`}
-                />
+                <div className={`w-2 h-px mx-0.5 ${isCompleted ? "bg-success" : "bg-base-300"}`} />
               )}
             </div>
           );
@@ -364,7 +360,7 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
                   onClick={() => setShowHistory(!showHistory)}
                   className={`btn btn-circle btn-sm ${showHistory ? 'btn-primary' : 'btn-ghost'}`}
                   aria-label="Toggle history"
-                  title="ประวัติการสนทนา"
+                  title="History"
                 >
                   <History className="h-4 w-4" />
                 </button>
@@ -386,7 +382,7 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
                   onClick={() => { startNewChat(); setShowHistory(false); }}
                   className="btn btn-circle btn-sm btn-ghost"
                   aria-label="New Chat"
-                  title="เริ่มแชทใหม่"
+                  title="New Chat"
                 >
                   <Plus className="h-4 w-4" />
                 </button>
@@ -395,7 +391,7 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
                   className="btn btn-circle btn-sm"
                   disabled={messages.length === 0}
                   aria-label="Clear"
-                  title="ล้างข้อความ"
+                  title="Clear"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -438,11 +434,11 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
                           </div>
                           <div>
                             <h1 className="text-2xl font-bold text-base-content">
-                              {chatbotReady ? "สวัสดี! 👋" : "กำลังเตรียมตัว..."}
+                              {chatbotReady ? "Hello! 👋" : "Initializing chatbot..."}
                             </h1>
                             <p className="py-2 text-[#778873]">
                               {chatbotReady
-                                ? "ถามเกี่ยวกับ dependencies และ vulnerabilities ได้เลย"
+                                ? "Ask about dependencies and vulnerabilities"
                                 : "Initializing chatbot..."}
                             </p>
                           </div>
@@ -510,10 +506,14 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
                   })}
 
                   {loading && (
-                    <ProcessingStepsIndicator
-                      currentStep={processingStep}
-                      message={processingMessage}
-                    />
+                    <div className="flex w-full justify-start">
+                      <div className="group relative max-w-3xl w-full rounded-2xl border bg-base-200/90 border-base-content/10 text-base-content p-4 shadow-sm">
+                        <ProcessingStepsIndicator
+                          currentStep={processingStep}
+                          message={processingMessage}
+                        />
+                      </div>
+                    </div>
                   )}
 
                   <div ref={messagesEndRef} />
@@ -524,27 +524,34 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
                   <div className="flex flex-col gap-2">
                     {/* Repository Selector */}
                     <div className="p-2 border-b border-base-content/10 bg-base-100/50 flex items-center gap-2">
-                      <span className="text-xs text-base-content/60">ถามเกี่ยวกับ:</span>
+                      <span className="text-xs text-base-content/60">Ask about:</span>
                       <ChatRepoSelector
                         selectedRepo={selectedRepo}
                         onSelectionChange={setSelectedRepo}
                         className="flex-1"
                       />
                     </div>
-                    {/* Quick Prompt Chips */}
+                    {/* Quick Prompt Chips - 2 FACT, 2 EXPLAIN, 1 HYBRID */}
                     <div className="flex gap-2 overflow-x-auto py-1 scrollbar-hide">
                       {[
-                        { emoji: "🔍", label: "สรุป vulnerabilities", prompt: "สรุป vulnerabilities ทั้งหมดที่พบ" },
-                        { emoji: "⚠️", label: "Critical issues", prompt: "มี critical vulnerabilities อะไรบ้าง" },
-                        { emoji: "📦", label: "Dependencies", prompt: "มี dependencies อะไรบ้าง" },
-                        { emoji: "🛡️", label: "Security advice", prompt: "แนะนำวิธีแก้ไขปัญหา security" },
-                        { emoji: "📊", label: "รายงานสรุป", prompt: "สร้างรายงานสรุปความปลอดภัยของโปรเจค" },
+                        // Vector-First optimized prompts - clear semantic queries
+                        { emoji: "�", label: "Critical", prompt: "list all critical severity vulnerabilities", intent: "fact" },
+                        { emoji: "�", label: "High", prompt: "show all high severity vulnerabilities", intent: "fact" },
+                        // Package search - works well with semantic search
+                        { emoji: "�", label: "Package", prompt: "vulnerabilities affecting langchain package", intent: "fact" },
+                        { emoji: "⚙️", label: "Next.js", prompt: "security issues in next.js", intent: "fact" },
+                        // Summary - triggers graph reasoning
+                        { emoji: "📊", label: "Summary", prompt: "summarize vulnerabilities by severity with fix recommendations", intent: "hybrid" },
                       ].map((item) => (
                         <button
                           key={item.label}
                           type="button"
                           onClick={() => setInput(item.prompt)}
-                          className="btn btn-xs btn-ghost border border-base-content/10 hover:border-primary/50 hover:bg-primary/10 gap-1 shrink-0 text-base-content/70"
+                          className={`btn btn-xs btn-ghost border shrink-0 gap-1 ${item.intent === "fact" ? "border-primary/30 hover:border-primary/50 hover:bg-primary/10 text-primary/80" :
+                            item.intent === "explain" ? "border-secondary/30 hover:border-secondary/50 hover:bg-secondary/10 text-secondary/80" :
+                              "border-accent/30 hover:border-accent/50 hover:bg-accent/10 text-accent/80"
+                            }`}
+                          title={`${item.intent.toUpperCase()}: ${item.prompt}`}
                         >
                           <span>{item.emoji}</span>
                           <span className="text-xs">{item.label}</span>
@@ -564,8 +571,8 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         placeholder={selectedRepo
-                          ? `เช่น "มี vulnerability อะไรบ้าง"...`
-                          : "เลือก repository ก่อนเพื่อเริ่มถามคำถาม..."}
+                          ? `e.g. "What are the vulnerabilities?"`
+                          : "Select a repository to start asking questions..."}
                         disabled={!chatbotReady || loading || !selectedRepo}
                         className="flex-1 bg-transparent resize-none text-base-content outline-none min-h-12"
                         rows={2}
@@ -580,7 +587,7 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
 
                       {/* Status */}
                       <span className="text-xs text-base-content/50 hidden sm:block">
-                        {chatbotReady ? "พร้อม" : "..."}
+                        {chatbotReady ? "Ready" : "..."}
                       </span>
 
                       {/* Send button */}

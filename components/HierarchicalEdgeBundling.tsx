@@ -6,12 +6,14 @@ import { API_URL, API_ENDPOINTS } from "@/lib/constants";
 import { VisualizationLoadingOverlay } from "@/components/VisualizationLoadingOverlay";
 import { AlertCircle } from "lucide-react";
 import { GraphLegend } from "@/components/GraphLegend";
-import { TREE_DATA_QUERY, COMPARE_REPOS_QUERY } from "@/lib/graph-queries";
+import { TREE_DATA_QUERY, COMPARE_REPOS_QUERY, TREE_DATA_BY_SCANS } from "@/lib/graph-queries";
 import { VulnerabilityDetailModal } from "@/components/VulnerabilityDetailModal";
 import { SEVERITY_LEGEND_ITEMS, getSeverityHexColor } from "@/lib/severity";
 
 import { RepositorySelector } from "./RepositorySelector";
 import { RepositoryEmptyState } from "./RepositoryEmptyState";
+import { ScanVersionSelector } from "./ScanVersionSelector";
+import { MultiRepoVersionSelector } from "./MultiRepoVersionSelector";
 
 interface HierarchicalEdgeBundlingProps {
     readonly userName?: string;
@@ -45,6 +47,9 @@ export const HierarchicalEdgeBundling: React.FC<HierarchicalEdgeBundlingProps> =
     const [selectedVulnId, setSelectedVulnId] = useState<string | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
+    // Version selection state: maps repoId -> {versionId, scanId}
+    const [selectedVersions, setSelectedVersions] = useState<Record<string, { versionId: string; scanId: string }>>({});
+
 
 
     // Fetch tree data
@@ -52,11 +57,26 @@ export const HierarchicalEdgeBundling: React.FC<HierarchicalEdgeBundlingProps> =
         setLoading(true);
         setError(null);
         try {
-            // Use repo-specific query if repos are selected
-            const cypherQuery = selectedRepos.length > 0 ? COMPARE_REPOS_QUERY : TREE_DATA_QUERY;
-            const parameters = selectedRepos.length > 0
-                ? { repoNames: selectedRepos }
-                : { userName: userName || "System" };
+            // Check if we have version selections for all repos
+            const scanIds = selectedRepos
+                .map(repo => selectedVersions[repo]?.scanId)
+                .filter(Boolean) as string[];
+            const useVersionFilter = scanIds.length > 0 && scanIds.length === selectedRepos.length;
+
+            // Use version-filtered query if available, else repo-specific, else default
+            let cypherQuery: string;
+            let parameters: any;
+
+            if (useVersionFilter) {
+                cypherQuery = TREE_DATA_BY_SCANS;
+                parameters = { scanIds };
+            } else if (selectedRepos.length > 0) {
+                cypherQuery = COMPARE_REPOS_QUERY;
+                parameters = { repoNames: selectedRepos };
+            } else {
+                cypherQuery = TREE_DATA_QUERY;
+                parameters = { userName: userName || "System" };
+            }
 
             const response = await fetch(
                 `${API_URL}${API_ENDPOINTS.CHATBOT.KNOWLEDGE_QUERY}`,
@@ -95,7 +115,7 @@ export const HierarchicalEdgeBundling: React.FC<HierarchicalEdgeBundlingProps> =
             setData([]);
             setLoading(false);
         }
-    }, [selectedRepos]);
+    }, [selectedRepos, selectedVersions]);
 
     // Render D3
     useEffect(() => {
@@ -354,13 +374,48 @@ export const HierarchicalEdgeBundling: React.FC<HierarchicalEdgeBundlingProps> =
     // Check if showing empty state
     const showEmptyState = !data.length && !loading && selectedRepos.length === 0;
 
+    // Handle repo selection change - preserves versions for repos that remain selected
+    const handleRepoSelectionChange = (repos: string[]) => {
+        setSelectedVersions(prev => {
+            const newVersions: Record<string, { versionId: string; scanId: string }> = {};
+            for (const repo of repos) {
+                if (prev[repo]) {
+                    newVersions[repo] = prev[repo];
+                }
+            }
+            return newVersions;
+        });
+        setSelectedRepos(repos);
+    };
+
     return (
         <div className="w-full h-full overflow-hidden bg-base-100 flex justify-center items-center relative">
             {/* Controls Bar - Always visible, same instance */}
             <div className="absolute top-4 right-4 flex gap-2 z-10">
+                {/* Version selector - single repo uses simple selector, multi uses panel */}
+                {selectedRepos.length === 1 && (
+                    <ScanVersionSelector
+                        repositoryId={selectedRepos[0]}
+                        selectedVersionId={selectedVersions[selectedRepos[0]]?.versionId ?? null}
+                        onVersionChange={(versionId, scanId) => {
+                            setSelectedVersions(prev => ({
+                                ...prev,
+                                [selectedRepos[0]]: { versionId, scanId }
+                            }));
+                        }}
+                    />
+                )}
+                {selectedRepos.length > 1 && (
+                    <MultiRepoVersionSelector
+                        repositoryIds={selectedRepos}
+                        selectedVersions={selectedVersions}
+                        onVersionsChange={setSelectedVersions}
+                    />
+                )}
                 <RepositorySelector
                     selectedRepos={selectedRepos}
-                    onSelectionChange={setSelectedRepos}
+                    onSelectionChange={handleRepoSelectionChange}
+                    useFullName={true}
                 />
             </div>
 
