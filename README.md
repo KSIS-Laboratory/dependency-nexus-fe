@@ -31,8 +31,6 @@ Next.js 16 frontend for Dependency Nexus with GitHub App authentication, advance
 
 1. **Install dependencies:**
    ```bash
-   npm install
-   # or
    bun install
    ```
 
@@ -45,8 +43,6 @@ Next.js 16 frontend for Dependency Nexus with GitHub App authentication, advance
 
 3. **Run the development server:**
    ```bash
-   npm run dev
-   # or
    bun dev
    ```
 

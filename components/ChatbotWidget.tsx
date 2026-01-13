@@ -208,6 +208,7 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
   const [showHistory, setShowHistory] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
+  const [selectedSeverity, setSelectedSeverity] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const handleChatbotError = useCallback((err: string) => {
@@ -280,6 +281,13 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
     let messageToSend = input.trim();
     if (selectedRepo) {
       messageToSend = `@${selectedRepo} ${messageToSend}`;
+    }
+
+    // Append severity filter context if selected
+    if (selectedSeverity) {
+      if (!messageToSend.toLowerCase().includes(selectedSeverity.toLowerCase())) {
+        messageToSend += ` (Filter by ${selectedSeverity} severity)`;
+      }
     }
 
     await sendMessage(messageToSend);
@@ -530,16 +538,40 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
                         onSelectionChange={setSelectedRepo}
                         className="flex-1"
                       />
+
+                      {/* Severity Selector */}
+                      <div className="dropdown dropdown-top dropdown-end">
+                        <div tabIndex={0} role="button" className="btn btn-xs btn-ghost gap-1 font-normal opacity-80 hover:opacity-100">
+                          {selectedSeverity ? (
+                            <span className={`badge badge-xs gap-1 ${selectedSeverity === 'CRITICAL' ? 'badge-error' :
+                              selectedSeverity === 'HIGH' ? 'badge-warning' :
+                                selectedSeverity === 'MODERATE' ? 'badge-info' : 'badge-ghost'
+                              }`}>
+                              {selectedSeverity}
+                            </span>
+                          ) : (
+                            <span className="text-xs">Severity</span>
+                          )}
+                          <ChevronDown className="h-3 w-3 opacity-50" />
+                        </div>
+                        <ul tabIndex={0} className="dropdown-content z-[1] menu p-1 shadow bg-base-100 rounded-box w-32 text-xs mb-1 border border-base-content/10">
+                          <li><button type="button" onClick={() => setSelectedSeverity(null)} className={!selectedSeverity ? "active" : ""}>All Levels</button></li>
+                          <li><button type="button" onClick={() => setSelectedSeverity('CRITICAL')} className="text-error">Critical</button></li>
+                          <li><button type="button" onClick={() => setSelectedSeverity('HIGH')} className="text-warning">High</button></li>
+                          <li><button type="button" onClick={() => setSelectedSeverity('MODERATE')} className="text-info">Moderate</button></li>
+                          <li><button type="button" onClick={() => setSelectedSeverity('LOW')} className="text-success">Low</button></li>
+                        </ul>
+                      </div>
                     </div>
                     {/* Quick Prompt Chips - 2 FACT, 2 EXPLAIN, 1 HYBRID */}
                     <div className="flex gap-2 overflow-x-auto py-1 scrollbar-hide">
                       {[
                         // Vector-First optimized prompts - clear semantic queries
-                        { emoji: "�", label: "Critical", prompt: "list all critical severity vulnerabilities", intent: "fact" },
-                        { emoji: "�", label: "High", prompt: "show all high severity vulnerabilities", intent: "fact" },
+                        { emoji: "🔴", label: "Critical", prompt: "list all critical severity vulnerabilities", intent: "fact" },
+                        { emoji: "🟡", label: "High", prompt: "show all high severity vulnerabilities", intent: "fact" },
                         // Package search - works well with semantic search
-                        { emoji: "�", label: "Package", prompt: "vulnerabilities affecting langchain package", intent: "fact" },
-                        { emoji: "⚙️", label: "Next.js", prompt: "security issues in next.js", intent: "fact" },
+                        { emoji: "📦", label: "Package", prompt: "vulnerabilities affecting langchain package", intent: "fact" },
+                        { emoji: "🐛", label: "Vulnerability", prompt: "show all security vulnerabilities in langchain package", intent: "fact" },
                         // Summary - triggers graph reasoning
                         { emoji: "📊", label: "Summary", prompt: "summarize vulnerabilities by severity with fix recommendations", intent: "hybrid" },
                       ].map((item) => (
@@ -589,6 +621,17 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
                       <span className="text-xs text-base-content/50 hidden sm:block">
                         {chatbotReady ? "Ready" : "..."}
                       </span>
+
+                      {/* Clear filters button (if any active) */}
+                      {(selectedRepo || selectedSeverity) && (
+                        <button
+                          type="button"
+                          onClick={() => { setSelectedRepo(null); setSelectedSeverity(null); }}
+                          className="btn btn-ghost btn-xs text-xs font-normal opacity-50 hover:opacity-100"
+                        >
+                          Clear filters
+                        </button>
+                      )}
 
                       {/* Send button */}
                       <button

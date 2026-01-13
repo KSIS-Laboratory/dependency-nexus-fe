@@ -293,17 +293,21 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
         });
 
         function dragstarted(event: any, d: GraphNode) {
+            // Prevent dragging center anchor
+            if (d.id === "center-anchor") return;
             if (!event.active) simulation.alphaTarget(0.3).restart();
             d.fx = d.x;
             d.fy = d.y;
         }
 
         function dragged(event: any, d: GraphNode) {
+            if (d.id === "center-anchor") return;
             d.fx = event.x;
             d.fy = event.y;
         }
 
         function dragended(event: any, d: GraphNode) {
+            if (d.id === "center-anchor") return;
             if (!event.active) simulation.alphaTarget(0);
             d.fx = null;
             d.fy = null;
