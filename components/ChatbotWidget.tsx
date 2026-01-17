@@ -208,7 +208,6 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
   const [showHistory, setShowHistory] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
-  const [selectedSeverity, setSelectedSeverity] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const handleChatbotError = useCallback((err: string) => {
@@ -281,13 +280,6 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
     let messageToSend = input.trim();
     if (selectedRepo) {
       messageToSend = `@${selectedRepo} ${messageToSend}`;
-    }
-
-    // Append severity filter context if selected
-    if (selectedSeverity) {
-      if (!messageToSend.toLowerCase().includes(selectedSeverity.toLowerCase())) {
-        messageToSend += ` (Filter by ${selectedSeverity} severity)`;
-      }
     }
 
     await sendMessage(messageToSend);
@@ -538,57 +530,46 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
                         onSelectionChange={setSelectedRepo}
                         className="flex-1"
                       />
-
-                      {/* Severity Selector */}
-                      <div className="dropdown dropdown-top dropdown-end">
-                        <div tabIndex={0} role="button" className="btn btn-xs btn-ghost gap-1 font-normal opacity-80 hover:opacity-100">
-                          {selectedSeverity ? (
-                            <span className={`badge badge-xs gap-1 ${selectedSeverity === 'CRITICAL' ? 'badge-error' :
-                              selectedSeverity === 'HIGH' ? 'badge-warning' :
-                                selectedSeverity === 'MODERATE' ? 'badge-info' : 'badge-ghost'
-                              }`}>
-                              {selectedSeverity}
-                            </span>
-                          ) : (
-                            <span className="text-xs">Severity</span>
-                          )}
-                          <ChevronDown className="h-3 w-3 opacity-50" />
-                        </div>
-                        <ul tabIndex={0} className="dropdown-content z-[1] menu p-1 shadow bg-base-100 rounded-box w-32 text-xs mb-1 border border-base-content/10">
-                          <li><button type="button" onClick={() => setSelectedSeverity(null)} className={!selectedSeverity ? "active" : ""}>All Levels</button></li>
-                          <li><button type="button" onClick={() => setSelectedSeverity('CRITICAL')} className="text-error">Critical</button></li>
-                          <li><button type="button" onClick={() => setSelectedSeverity('HIGH')} className="text-warning">High</button></li>
-                          <li><button type="button" onClick={() => setSelectedSeverity('MODERATE')} className="text-info">Moderate</button></li>
-                          <li><button type="button" onClick={() => setSelectedSeverity('LOW')} className="text-success">Low</button></li>
-                        </ul>
-                      </div>
                     </div>
-                    {/* Quick Prompt Chips - 2 FACT, 2 EXPLAIN, 1 HYBRID */}
+                    {/* Quick Prompt Chips - Vector-First Query Patterns */}
                     <div className="flex gap-2 overflow-x-auto py-1 scrollbar-hide">
-                      {[
-                        // Vector-First optimized prompts - clear semantic queries
-                        { emoji: "🔴", label: "Critical", prompt: "list all critical severity vulnerabilities", intent: "fact" },
-                        { emoji: "🟡", label: "High", prompt: "show all high severity vulnerabilities", intent: "fact" },
-                        // Package search - works well with semantic search
-                        { emoji: "📦", label: "Package", prompt: "vulnerabilities affecting langchain package", intent: "fact" },
-                        { emoji: "🐛", label: "Vulnerability", prompt: "show all security vulnerabilities in langchain package", intent: "fact" },
-                        // Summary - triggers graph reasoning
-                        { emoji: "📊", label: "Summary", prompt: "summarize vulnerabilities by severity with fix recommendations", intent: "hybrid" },
-                      ].map((item) => (
-                        <button
-                          key={item.label}
-                          type="button"
-                          onClick={() => setInput(item.prompt)}
-                          className={`btn btn-xs btn-ghost border shrink-0 gap-1 ${item.intent === "fact" ? "border-primary/30 hover:border-primary/50 hover:bg-primary/10 text-primary/80" :
-                            item.intent === "explain" ? "border-secondary/30 hover:border-secondary/50 hover:bg-secondary/10 text-secondary/80" :
-                              "border-accent/30 hover:border-accent/50 hover:bg-accent/10 text-accent/80"
-                            }`}
-                          title={`${item.intent.toUpperCase()}: ${item.prompt}`}
-                        >
-                          <span>{item.emoji}</span>
-                          <span className="text-xs">{item.label}</span>
-                        </button>
-                      ))}
+                      {(() => {
+                        // Intent-to-class mapping extracted from nested ternary
+                        const intentClassMap: Record<string, string> = {
+                          repo: "border-primary/30 hover:border-primary/50 hover:bg-primary/10 text-primary/80",
+                          severity: "border-error/30 hover:border-error/50 hover:bg-error/10 text-error/80",
+                          package: "border-secondary/30 hover:border-secondary/50 hover:bg-secondary/10 text-secondary/80",
+                          details: "border-info/30 hover:border-info/50 hover:bg-info/10 text-info/80",
+                        };
+                        const defaultClass = "border-accent/30 hover:border-accent/50 hover:bg-accent/10 text-accent/80";
+
+                        const quickPrompts = [
+                          // 1. REPO_ALL_VULNS - All vulnerabilities in repo
+                          { emoji: "🔍", label: "ช่องโหว่ทั้งหมด", prompt: "มีช่องโหว่ทั้งหมดอะไรบ้าง", intent: "repo" },
+                          // 2. REPO_SEVERITY_VULNS - Severity filtered
+                          { emoji: "🔴", label: "Critical", prompt: "มีช่องโหว่ระดับ Critical อะไรบ้าง", intent: "severity" },
+                          { emoji: "🟠", label: "High", prompt: "มีช่องโหว่ระดับ High อะไรบ้าง", intent: "severity" },
+                          // 3. PACKAGE_VULNS - Package vulnerabilities
+                          { emoji: "📦", label: "Package", prompt: "package axios มีช่องโหว่อะไรบ้าง", intent: "package" },
+                          // 4. VULN_DETAILS - Vulnerability details (example ID)
+                          { emoji: "🔎", label: "Details", prompt: "ช่องโหว่ GHSA-xxxx คืออะไร", intent: "details" },
+                          // 5. Summary - General analysis
+                          { emoji: "📊", label: "สรุป", prompt: "สรุปช่องโหว่และแนะนำการแก้ไข", intent: "hybrid" },
+                        ];
+
+                        return quickPrompts.map((item) => (
+                          <button
+                            key={item.label}
+                            type="button"
+                            onClick={() => setInput(item.prompt)}
+                            className={`btn btn-xs btn-ghost border shrink-0 gap-1 ${intentClassMap[item.intent] ?? defaultClass}`}
+                            title={item.prompt}
+                          >
+                            <span>{item.emoji}</span>
+                            <span className="text-xs">{item.label}</span>
+                          </button>
+                        ));
+                      })()}
                     </div>
                     {/* Textarea with inline repo badge */}
                     <div className="relative flex items-start gap-2 textarea input-nature min-h-16 w-full p-2 focus-within:ring-2 focus-within:ring-primary/30">
@@ -623,10 +604,10 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
                       </span>
 
                       {/* Clear filters button (if any active) */}
-                      {(selectedRepo || selectedSeverity) && (
+                      {(selectedRepo) && (
                         <button
                           type="button"
-                          onClick={() => { setSelectedRepo(null); setSelectedSeverity(null); }}
+                          onClick={() => { setSelectedRepo(null); }}
                           className="btn btn-ghost btn-xs text-xs font-normal opacity-50 hover:opacity-100"
                         >
                           Clear filters
