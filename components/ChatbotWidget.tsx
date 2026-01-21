@@ -266,9 +266,22 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
       }
     };
 
+    // Handle open with repo event
+    const handleOpenWithRepoEvent = (event: Event) => {
+      const customEvent = event as CustomEvent<{ repoFullName?: string; repoName?: string }>;
+      const repoFullName = customEvent.detail?.repoFullName;
+
+      if (repoFullName) {
+        setSelectedRepo(repoFullName);
+        setIsOpen(true);
+      }
+    };
+
     target.addEventListener("chatbot:context", handleContextEvent as EventListener);
+    target.addEventListener("chatbot:openWithRepo", handleOpenWithRepoEvent as EventListener);
     return () => {
       target.removeEventListener("chatbot:context", handleContextEvent as EventListener);
+      target.removeEventListener("chatbot:openWithRepo", handleOpenWithRepoEvent as EventListener);
     };
   }, [sendMessage, setInput]);
 
@@ -290,10 +303,14 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
   }, []);
 
   const handleClearHistory = useCallback(() => {
-    clearMessages();
+    if (currentSessionId) {
+      deleteSession(currentSessionId);
+    } else {
+      clearMessages();
+    }
     setInput("");
     setCopiedId(null);
-  }, [clearMessages]);
+  }, [clearMessages, deleteSession, currentSessionId]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -597,11 +614,6 @@ export function ChatbotWidget({ userId }: Readonly<ChatbotWidgetProps>) {
 
                       {/* Spacer */}
                       <div className="flex-1" />
-
-                      {/* Status */}
-                      <span className="text-xs text-base-content/50 hidden sm:block">
-                        {chatbotReady ? "Ready" : "..."}
-                      </span>
 
                       {/* Clear filters button (if any active) */}
                       {(selectedRepo) && (

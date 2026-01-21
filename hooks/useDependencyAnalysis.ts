@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { GitHubAPIService, DependencyAnalysis } from "@/lib/github";
+import { queryKeys } from "@/lib/query-keys";
 
 export interface UseDependencyAnalysisResult {
   analysis: DependencyAnalysis | null;
@@ -13,40 +14,24 @@ export function useDependencyAnalysis(
   owner: string,
   repo: string
 ): UseDependencyAnalysisResult {
-  const [analysis, setAnalysis] = useState<DependencyAnalysis | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchAnalysis = async () => {
-    if (!githubToken || !owner || !repo) {
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setError(null);
-      const result = await GitHubAPIService.analyzeDependencies(
-        githubToken,
-        owner,
-        repo
-      );
-      setAnalysis(result);
-    } catch (err: any) {
-      setError(err.message || "Failed to analyze dependencies");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAnalysis();
-  }, [githubToken, owner, repo]);
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: queryKeys.dependencies.analysis(owner, repo),
+    queryFn: async () => {
+      if (!githubToken) {
+        throw new Error("GitHub token is required");
+      }
+      return GitHubAPIService.analyzeDependencies(githubToken, owner, repo);
+    },
+    enabled: !!githubToken && !!owner && !!repo,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 
   return {
-    analysis,
+    analysis: data ?? null,
     isLoading,
-    error,
-    refetch: fetchAnalysis,
+    error: error?.message ?? null,
+    refetch: async () => {
+      await refetch();
+    },
   };
 }

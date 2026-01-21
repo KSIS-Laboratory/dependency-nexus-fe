@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { ChevronDown, RefreshCw, Check } from "lucide-react";
-import { API_URL } from "@/lib/constants";
+import React, { useState } from "react";
+import { ChevronDown, Check } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useScannedRepos } from "@/hooks/useScannedRepos";
 
 interface RepositorySelectorProps {
     selectedRepos: string[];
@@ -22,48 +22,15 @@ export const RepositorySelector: React.FC<RepositorySelectorProps> = ({
     useFullName = false,
 }) => {
     const { githubToken } = useAuth();
-    const [availableRepos, setAvailableRepos] = useState<string[]>([]);
-    const [loading, setLoading] = useState(false);
+    const { repos, isLoading, error, refetch } = useScannedRepos(githubToken);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
-    const fetchRepos = async () => {
-        if (!githubToken) return;
-        setLoading(true);
-        setError(null);
-        try {
-            const response = await fetch(`${API_URL}/api/github/repositories`, {
-                headers: { Authorization: `Bearer ${githubToken}` }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                if (data.repositories && Array.isArray(data.repositories)) {
-                    // Filter only repositories that have scan history
-                    const scannedRepos = data.repositories
-                        .filter((r: any) => r.has_history)
-                        .map((r: any) => useFullName ? r.full_name : r.name);
-                    setAvailableRepos(scannedRepos);
-                }
-            } else {
-                setError("Failed to fetch repositories");
-            }
-        } catch (err) {
-            console.error("Failed to fetch repos", err);
-            setError("Connection error");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchRepos();
-    }, [githubToken]);
+    const availableRepos = repos.map((r) => (useFullName ? r.full_name : r.name));
 
     const handleSelect = (repo: string) => {
         if (multiSelect) {
             if (selectedRepos.includes(repo)) {
-                onSelectionChange(selectedRepos.filter(r => r !== repo));
+                onSelectionChange(selectedRepos.filter((r) => r !== repo));
             } else {
                 onSelectionChange([...selectedRepos, repo]);
             }
@@ -99,7 +66,10 @@ export const RepositorySelector: React.FC<RepositorySelectorProps> = ({
                                 ? "Select Scanned Repository"
                                 : `${selectedRepos.length} Selected`}
                         </span>
-                        <ChevronDown className={`w-4 h-4 ml-1 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                        <ChevronDown
+                            className={`w-4 h-4 ml-1 transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""
+                                }`}
+                        />
                     </button>
 
                     {isDropdownOpen && (
@@ -111,7 +81,7 @@ export const RepositorySelector: React.FC<RepositorySelectorProps> = ({
                             />
 
                             <div className="absolute right-0 top-full mt-2 w-72 max-h-80 overflow-y-auto bg-base-100 rounded-lg shadow-xl border border-base-300 z-50 flex flex-col">
-                                {loading ? (
+                                {isLoading ? (
                                     <div className="p-4 text-center text-sm text-base-content/60">
                                         <span className="loading loading-spinner loading-xs mr-2"></span>
                                         Loading repositories...
@@ -121,7 +91,9 @@ export const RepositorySelector: React.FC<RepositorySelectorProps> = ({
                                         {error}
                                         <button
                                             className="btn btn-xs btn-ghost mt-2"
-                                            onClick={(e) => { fetchRepos(); }}
+                                            onClick={() => {
+                                                refetch();
+                                            }}
                                         >
                                             Retry
                                         </button>
@@ -130,37 +102,60 @@ export const RepositorySelector: React.FC<RepositorySelectorProps> = ({
                                     <div className="p-4 text-center text-sm text-base-content/60">
                                         No scanned repositories found.
                                         <br />
-                                        <span className="text-xs opacity-70">Run a scan first to see it here.</span>
+                                        <span className="text-xs opacity-70">
+                                            Run a scan first to see it here.
+                                        </span>
                                     </div>
                                 ) : (
                                     <>
                                         {multiSelect && (
                                             <div className="p-2 border-b border-base-200 sticky top-0 bg-base-100 z-10">
                                                 <button
-                                                    className={`btn btn-sm btn-ghost w-full justify-start font-normal ${selectedRepos.length === availableRepos.length ? 'text-primary' : ''}`}
+                                                    className={`btn btn-sm btn-ghost w-full justify-start font-normal ${selectedRepos.length === availableRepos.length
+                                                            ? "text-primary"
+                                                            : ""
+                                                        }`}
                                                     onClick={handleSelectAll}
                                                 >
-                                                    <div className={`w-4 h-4 rounded border flex items-center justify-center mr-2 ${selectedRepos.length === availableRepos.length ? 'bg-primary border-primary text-primary-content' : 'border-base-content/40'}`}>
-                                                        {selectedRepos.length === availableRepos.length && <Check className="w-3 h-3" />}
+                                                    <div
+                                                        className={`w-4 h-4 rounded border flex items-center justify-center mr-2 ${selectedRepos.length === availableRepos.length
+                                                                ? "bg-primary border-primary text-primary-content"
+                                                                : "border-base-content/40"
+                                                            }`}
+                                                    >
+                                                        {selectedRepos.length === availableRepos.length && (
+                                                            <Check className="w-3 h-3" />
+                                                        )}
                                                     </div>
                                                     <span className="truncate">
-                                                        {selectedRepos.length === availableRepos.length ? "Deselect All" : "Select All Scanned"}
+                                                        {selectedRepos.length === availableRepos.length
+                                                            ? "Deselect All"
+                                                            : "Select All Scanned"}
                                                     </span>
                                                 </button>
                                             </div>
                                         )}
 
                                         <div className="p-2 flex flex-col gap-1">
-                                            {availableRepos.map(repo => (
+                                            {availableRepos.map((repo) => (
                                                 <button
                                                     key={repo}
                                                     className="btn btn-sm btn-ghost justify-start font-normal h-auto py-2"
                                                     onClick={() => handleSelect(repo)}
                                                 >
-                                                    <div className={`w-4 h-4 rounded border flex items-center justify-center mr-2 flex-shrink-0 ${selectedRepos.includes(repo) ? 'bg-primary border-primary text-primary-content has-checked' : 'border-base-content/40'}`}>
-                                                        {selectedRepos.includes(repo) && <Check className="w-3 h-3" />}
+                                                    <div
+                                                        className={`w-4 h-4 rounded border flex items-center justify-center mr-2 flex-shrink-0 ${selectedRepos.includes(repo)
+                                                                ? "bg-primary border-primary text-primary-content has-checked"
+                                                                : "border-base-content/40"
+                                                            }`}
+                                                    >
+                                                        {selectedRepos.includes(repo) && (
+                                                            <Check className="w-3 h-3" />
+                                                        )}
                                                     </div>
-                                                    <span className="truncate text-left" title={repo}>{repo}</span>
+                                                    <span className="truncate text-left" title={repo}>
+                                                        {repo}
+                                                    </span>
                                                 </button>
                                             ))}
                                         </div>

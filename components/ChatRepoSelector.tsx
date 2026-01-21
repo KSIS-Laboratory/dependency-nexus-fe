@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState } from "react";
 import { GitBranch, ChevronUp, X, RefreshCw, Check } from "lucide-react";
-import { API_URL } from "@/lib/constants";
 import { useAuth } from "@/hooks/useAuth";
+import { useScannedRepos } from "@/hooks/useScannedRepos";
 
 interface ChatRepoSelectorProps {
     selectedRepo: string | null;
@@ -21,41 +21,10 @@ export const ChatRepoSelector: React.FC<ChatRepoSelectorProps> = ({
     className = "",
 }) => {
     const { githubToken } = useAuth();
-    const [availableRepos, setAvailableRepos] = useState<string[]>([]);
-    const [loading, setLoading] = useState(false);
+    const { repos, isLoading, error, refetch } = useScannedRepos(githubToken);
     const [isOpen, setIsOpen] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
-    const fetchRepos = useCallback(async () => {
-        if (!githubToken) return;
-        setLoading(true);
-        setError(null);
-        try {
-            const response = await fetch(`${API_URL}/api/github/repositories`, {
-                headers: { Authorization: `Bearer ${githubToken}` }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                if (data.repositories && Array.isArray(data.repositories)) {
-                    const scannedRepos = data.repositories
-                        .filter((r: { has_history?: boolean }) => r.has_history)
-                        .map((r: { full_name: string; name: string }) => r.full_name || r.name);
-                    setAvailableRepos(scannedRepos);
-                }
-            } else {
-                setError("Failed to load");
-            }
-        } catch {
-            setError("Connection error");
-        } finally {
-            setLoading(false);
-        }
-    }, [githubToken]);
-
-    useEffect(() => {
-        fetchRepos();
-    }, [fetchRepos]);
+    const availableRepos = repos.map((r) => r.full_name || r.name);
 
     const handleSelect = (repo: string) => {
         if (selectedRepo === repo) {
@@ -67,11 +36,11 @@ export const ChatRepoSelector: React.FC<ChatRepoSelectorProps> = ({
     };
 
     const getShortName = (repo: string) => {
-        return repo.split('/').pop() || repo;
+        return repo.split("/").pop() || repo;
     };
 
     const renderDropdownContent = () => {
-        if (loading) {
+        if (isLoading) {
             return (
                 <div className="p-3 text-center text-xs text-base-content/60">
                     <span className="loading loading-spinner loading-xs mr-2" />
@@ -98,17 +67,20 @@ export const ChatRepoSelector: React.FC<ChatRepoSelectorProps> = ({
 
         return (
             <div className="p-1">
-                {availableRepos.map(repo => (
+                {availableRepos.map((repo) => (
                     <button
                         key={repo}
                         type="button"
-                        className={`btn btn-xs btn-ghost w-full justify-start font-normal h-auto py-1.5 gap-2 ${selectedRepo === repo ? 'bg-primary/10 text-primary' : ''}`}
+                        className={`btn btn-xs btn-ghost w-full justify-start font-normal h-auto py-1.5 gap-2 ${selectedRepo === repo ? "bg-primary/10 text-primary" : ""
+                            }`}
                         onClick={() => handleSelect(repo)}
                     >
-                        <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${selectedRepo === repo
-                            ? 'bg-primary border-primary text-primary-content'
-                            : 'border-base-content/30'
-                            }`}>
+                        <div
+                            className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${selectedRepo === repo
+                                    ? "bg-primary border-primary text-primary-content"
+                                    : "border-base-content/30"
+                                }`}
+                        >
                             {selectedRepo === repo && <Check className="w-2.5 h-2.5" />}
                         </div>
                         <GitBranch className="w-3 h-3 opacity-50 shrink-0" />
@@ -128,8 +100,8 @@ export const ChatRepoSelector: React.FC<ChatRepoSelectorProps> = ({
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
                 className={`btn btn-xs gap-1 ${selectedRepo
-                    ? 'btn-primary'
-                    : 'btn-ghost text-base-content/60 hover:text-base-content'
+                        ? "btn-primary"
+                        : "btn-ghost text-base-content/60 hover:text-base-content"
                     }`}
             >
                 <GitBranch className="w-3 h-3" />
@@ -138,7 +110,9 @@ export const ChatRepoSelector: React.FC<ChatRepoSelectorProps> = ({
                 ) : (
                     <span>Context</span>
                 )}
-                <ChevronUp className={`w-3 h-3 transition-transform ${isOpen ? '' : 'rotate-180'}`} />
+                <ChevronUp
+                    className={`w-3 h-3 transition-transform ${isOpen ? "" : "rotate-180"}`}
+                />
             </button>
 
             {/* Clear button when selected */}
@@ -173,11 +147,16 @@ export const ChatRepoSelector: React.FC<ChatRepoSelectorProps> = ({
                             </span>
                             <button
                                 type="button"
-                                onClick={(e) => { e.stopPropagation(); fetchRepos(); }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    refetch();
+                                }}
                                 className="btn btn-xs btn-circle btn-ghost"
                                 title="Refresh"
                             >
-                                <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+                                <RefreshCw
+                                    className={`w-3 h-3 ${isLoading ? "animate-spin" : ""}`}
+                                />
                             </button>
                         </div>
 

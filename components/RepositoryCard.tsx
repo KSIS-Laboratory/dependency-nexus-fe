@@ -1,17 +1,17 @@
 import { Repository } from "@/lib/github";
-import { FolderGit2, Star, Lock, Globe, MessageCircle, Github } from "lucide-react";
+import { FolderGit2, Star, Lock, Globe, MessageCircle, Github, GitFork } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { API_URL, API_ENDPOINTS } from "@/lib/constants";
 import { AuthService } from "@/lib/auth";
+import { openChatWithRepo } from "@/lib/chatbot";
 
 interface RepositoryCardProps {
   readonly repository: Repository;
   readonly onClick: () => void;
-  readonly onAskAI?: () => void;
 }
 
-export function RepositoryCard({ repository, onClick, onAskAI }: RepositoryCardProps) {
+export function RepositoryCard({ repository, onClick }: RepositoryCardProps) {
   const [hasHistory, setHasHistory] = useState(repository.has_history);
 
   useEffect(() => {
@@ -69,27 +69,61 @@ export function RepositoryCard({ repository, onClick, onAskAI }: RepositoryCardP
                   {repository.name}
                 </button>
               </h3>
-              <div className="flex items-center gap-2 text-xs text-base-content/60">
-                <Link
-                  href={`/repositories/${repository.owner}`}
-                  className="flex items-center gap-1 hover:text-primary transition-colors hover:underline underline-offset-2 z-20 relative"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Github className="h-3 w-3" />
-                  {repository.owner}
-                </Link>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2 text-xs text-base-content/60">
+                  <Link
+                    href={`/repositories/${repository.owner}`}
+                    className="flex items-center gap-1 hover:text-primary transition-colors hover:underline underline-offset-2 z-20 relative"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Github className="h-3 w-3" />
+                    {repository.owner}
+                  </Link>
+                </div>
+                {/* Display fork indicator */}
+                {repository.fork && (
+                  <div className="flex items-center gap-1.5 text-xs text-base-content/50">
+                    <GitFork className="h-3 w-3" />
+                    {repository.source ? (
+                      <>
+                        <span>forked from</span>
+                        <a
+                          href={repository.source.html_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline underline-offset-2 z-20 relative"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {repository.source.full_name}
+                        </a>
+                      </>
+                    ) : (
+                      <span className="text-warning">Forked</span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
-          <div className={`badge ${repository.private ? "badge-ghost" : "badge-outline"} gap-1.5 py-3 px-3 font-medium`}>
-            {repository.private ? (
-              <>
-                <Lock className="h-3.5 w-3.5" /> Private
-              </>
-            ) : (
-              <>
-                <Globe className="h-3.5 w-3.5" /> Public
-              </>
+          {/* Badges - stacked for better layout */}
+          <div className="flex flex-col items-end gap-1">
+            {/* Visibility badge */}
+            <div className={`badge badge-sm ${repository.private ? "badge-ghost" : "badge-outline"} gap-1 font-medium`}>
+              {repository.private ? (
+                <>
+                  <Lock className="h-3 w-3" /> Private
+                </>
+              ) : (
+                <>
+                  <Globe className="h-3 w-3" /> Public
+                </>
+              )}
+            </div>
+            {/* Starred indicator */}
+            {repository.is_starred && (
+              <div className="badge badge-warning badge-sm gap-1 font-medium">
+                <Star className="h-3 w-3 fill-current" /> Starred
+              </div>
             )}
           </div>
         </div>
@@ -112,11 +146,14 @@ export function RepositoryCard({ repository, onClick, onAskAI }: RepositoryCardP
             </div>
           </div>
 
-          {hasHistory && onAskAI && (
+          {hasHistory && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onAskAI();
+                openChatWithRepo({
+                  repoFullName: repository.full_name,
+                  repoName: repository.name,
+                });
               }}
               className="btn btn-sm btn-outline btn-primary gap-2 z-20 relative"
             >

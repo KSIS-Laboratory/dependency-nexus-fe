@@ -1,24 +1,25 @@
 /**
  * React Hook for Scan History Management
  * Handles dependency version tracking with S3 storage
+ * Refactored to use TanStack Query for better caching
  */
 
-import { useState, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
 import {
   createScanVersion,
   detectChanges,
-  getScanHistory,
   getVersionList,
   getLatestScan,
   getScanVersion,
   compareVersions,
   type DependencyScanVersion,
-  type ScanHistoryResponse,
   type ScanVersionListResponse,
   type CreateScanRequest,
   type ScanChangeDetectionResponse,
   type ScanComparison,
 } from "@/lib/scan-history";
+import { queryKeys } from "@/lib/query-keys";
 
 interface UseScanHistoryOptions {
   repositoryId?: string;
@@ -29,20 +30,10 @@ interface UseScanHistoryOptions {
 
 export function useScanHistory(options: UseScanHistoryOptions = {}) {
   const { repositoryId, repositoryName, token, onError } = options;
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [scanHistory, setScanHistory] = useState<ScanHistoryResponse | null>(null);
-  const [versionList, setVersionList] = useState<ScanVersionListResponse | null>(null);
-  const [latestScan, setLatestScan] = useState<DependencyScanVersion | null>(null);
-  const [currentVersion, setCurrentVersion] = useState<DependencyScanVersion | null>(null);
-  const [comparison, setComparison] = useState<ScanComparison | null>(null);
-  const [changeDetection, setChangeDetection] = useState<ScanChangeDetectionResponse | null>(null);
+  const queryClient = useQueryClient();
 
   const handleError = useCallback(
     (err: Error) => {
-      const message = err.message || "An error occurred";
-      setError(message);
       if (onError) {
         onError(err);
       }
@@ -50,233 +41,191 @@ export function useScanHistory(options: UseScanHistoryOptions = {}) {
     [onError]
   );
 
-  /**
-   * Create a new scan version
-   */
-  const createScan = useCallback(
-    async (request: CreateScanRequest) => {
-      if (!token) {
-        throw new Error("Authentication token required");
-      }
-
-      setLoading(true);
-      setError(null);
-
-      try {
-        const result = await createScanVersion(request, token);
-        setCurrentVersion(result);
-        return result;
-      } catch (err) {
-        handleError(err as Error);
-        throw err;
-      } finally {
-        setLoading(false);
-      }
-    },
-    [token, handleError]
-  );
-
-  /**
-   * Detect changes and create new scan
-   * Use this to check if dependencies changed before creating a new version
-   */
-  const detectAndCreateScan = useCallback(
-    async (request: CreateScanRequest) => {
-      if (!token) {
-        throw new Error("Authentication token required");
-      }
-
-      setLoading(true);
-      setError(null);
-
-      try {
-        const result = await detectChanges(request, token);
-        setChangeDetection(result);
-        setCurrentVersion(result.comparison ? 
-          await getScanVersion(request.repository_id, result.current_version_id, token) : 
-          null
-        );
-        return result;
-      } catch (err) {
-        handleError(err as Error);
-        throw err;
-      } finally {
-        setLoading(false);
-      }
-    },
-    [token, handleError]
-  );
-
-  /**
-   * Fetch complete scan history
-   */
-  const fetchScanHistory = useCallback(
-    async (repoId?: string, repoName?: string) => {
-      const id = repoId || repositoryId;
-      const name = repoName || repositoryName;
-
-      if (!id || !name || !token) {
+  // Query: Fetch version list
+  const versionListQuery = useQuery({
+    queryKey: queryKeys.scanHistory.versions(
+      repositoryId ?? "",
+      repositoryName ?? ""
+    ),
+    queryFn: async () => {
+      if (!repositoryId || !repositoryName || !token) {
         throw new Error("Repository ID, name, and token required");
       }
-
-      setLoading(true);
-      setError(null);
-
-      try {
-        const result = await getScanHistory(id, name, token);
-        setScanHistory(result);
-        return result;
-      } catch (err) {
-        handleError(err as Error);
-        throw err;
-      } finally {
-        setLoading(false);
-      }
+      return getVersionList(repositoryId, repositoryName, token);
     },
-    [repositoryId, repositoryName, token, handleError]
-  );
+    enabled: !!repositoryId && !!repositoryName && !!token,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
 
-  /**
-   * Fetch lightweight version list
-   */
+  // Query: Fetch latest scan
+  const latestScanQuery = useQuery({
+    queryKey: queryKeys.scanHistory.latest(repositoryId ?? ""),
+    queryFn: async () => {
+      if (!repositoryId || !token) {
+        throw new Error("Repository ID and token required");
+      }
+      return getLatestScan(repositoryId, token);
+    },
+    enabled: !!repositoryId && !!token,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+
+  // Mutation: Create scan
+  const createScanMutation = useMutation({
+    mutationFn: async (request: CreateScanRequest) => {
+      if (!token) {
+        throw new Error("Authentication token required");
+      }
+      return createScanVersion(request, token);
+    },
+    onSuccess: () => {
+      // Invalidate queries to refetch
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.scanHistory.all,
+      });
+    },
+    onError: handleError,
+  });
+
+  // Mutation: Detect changes
+  const detectChangesMutation = useMutation({
+    mutationFn: async (request: CreateScanRequest) => {
+      if (!token) {
+        throw new Error("Authentication token required");
+      }
+      return detectChanges(request, token);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.scanHistory.all,
+      });
+    },
+    onError: handleError,
+  });
+
+  // Mutation: Compare versions
+  const compareMutation = useMutation({
+    mutationFn: async ({
+      fromVersion,
+      toVersion,
+      repoId,
+    }: {
+      fromVersion: string;
+      toVersion: string;
+      repoId?: string;
+    }) => {
+      const id = repoId || repositoryId;
+      if (!id || !token) {
+        throw new Error("Repository ID and token required");
+      }
+      return compareVersions(id, fromVersion, toVersion, token);
+    },
+    onError: handleError,
+  });
+
+  // Mutation: Fetch specific version (using mutation for on-demand fetching)
+  const fetchVersionMutation = useMutation({
+    mutationFn: async ({
+      versionId,
+      repoId,
+    }: {
+      versionId: string;
+      repoId?: string;
+    }) => {
+      const id = repoId || repositoryId;
+      if (!id || !token) {
+        throw new Error("Repository ID and token required");
+      }
+      return getScanVersion(id, versionId, token);
+    },
+    onError: handleError,
+  });
+
+  // Legacy wrapper functions for backward compatibility
   const fetchVersionList = useCallback(
     async (repoId?: string, repoName?: string) => {
-      const id = repoId || repositoryId;
-      const name = repoName || repositoryName;
-
-      if (!id || !name || !token) {
-        throw new Error("Repository ID, name, and token required");
-      }
-
-      setLoading(true);
-      setError(null);
-
-      try {
-        const result = await getVersionList(id, name, token);
-        setVersionList(result);
-        return result;
-      } catch (err) {
-        handleError(err as Error);
-        throw err;
-      } finally {
-        setLoading(false);
-      }
+      // Just trigger a refetch
+      await versionListQuery.refetch();
+      return versionListQuery.data;
     },
-    [repositoryId, repositoryName, token, handleError]
+    [versionListQuery]
   );
 
-  /**
-   * Fetch latest scan
-   */
-  const fetchLatestScan = useCallback(
-    async (repoId?: string) => {
-      const id = repoId || repositoryId;
+  const fetchLatestScan = useCallback(async () => {
+    await latestScanQuery.refetch();
+    return latestScanQuery.data;
+  }, [latestScanQuery]);
 
-      if (!id || !token) {
-        throw new Error("Repository ID and token required");
-      }
-
-      setLoading(true);
-      setError(null);
-
-      try {
-        const result = await getLatestScan(id, token);
-        setLatestScan(result);
-        return result;
-      } catch (err) {
-        handleError(err as Error);
-        throw err;
-      } finally {
-        setLoading(false);
-      }
-    },
-    [repositoryId, token, handleError]
-  );
-
-  /**
-   * Fetch specific version
-   */
   const fetchVersion = useCallback(
     async (versionId: string, repoId?: string) => {
-      const id = repoId || repositoryId;
-
-      if (!id || !token) {
-        throw new Error("Repository ID and token required");
-      }
-
-      setLoading(true);
-      setError(null);
-
-      try {
-        const result = await getScanVersion(id, versionId, token);
-        setCurrentVersion(result);
-        return result;
-      } catch (err) {
-        handleError(err as Error);
-        throw err;
-      } finally {
-        setLoading(false);
-      }
+      return fetchVersionMutation.mutateAsync({ versionId, repoId });
     },
-    [repositoryId, token, handleError]
+    [fetchVersionMutation]
   );
 
-  /**
-   * Compare two versions
-   */
+  const createScan = useCallback(
+    async (request: CreateScanRequest) => {
+      return createScanMutation.mutateAsync(request);
+    },
+    [createScanMutation]
+  );
+
+  const detectAndCreateScan = useCallback(
+    async (request: CreateScanRequest) => {
+      return detectChangesMutation.mutateAsync(request);
+    },
+    [detectChangesMutation]
+  );
+
   const compareScans = useCallback(
     async (fromVersion: string, toVersion: string, repoId?: string) => {
-      const id = repoId || repositoryId;
-
-      if (!id || !token) {
-        throw new Error("Repository ID and token required");
-      }
-
-      setLoading(true);
-      setError(null);
-
-      try {
-        const result = await compareVersions(id, fromVersion, toVersion, token);
-        setComparison(result);
-        return result;
-      } catch (err) {
-        handleError(err as Error);
-        throw err;
-      } finally {
-        setLoading(false);
-      }
+      return compareMutation.mutateAsync({ fromVersion, toVersion, repoId });
     },
-    [repositoryId, token, handleError]
+    [compareMutation]
   );
 
-  /**
-   * Clear all state
-   */
   const clearState = useCallback(() => {
-    setScanHistory(null);
-    setVersionList(null);
-    setLatestScan(null);
-    setCurrentVersion(null);
-    setComparison(null);
-    setChangeDetection(null);
-    setError(null);
-  }, []);
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.scanHistory.all,
+    });
+  }, [queryClient]);
+
+  // Combined loading state
+  const loading =
+    versionListQuery.isLoading ||
+    latestScanQuery.isLoading ||
+    createScanMutation.isPending ||
+    detectChangesMutation.isPending ||
+    compareMutation.isPending ||
+    fetchVersionMutation.isPending;
+
+  // Combined error state
+  const error =
+    versionListQuery.error?.message ||
+    latestScanQuery.error?.message ||
+    createScanMutation.error?.message ||
+    detectChangesMutation.error?.message ||
+    compareMutation.error?.message ||
+    fetchVersionMutation.error?.message ||
+    null;
 
   return {
     // State
     loading,
     error,
-    scanHistory,
-    versionList,
-    latestScan,
-    currentVersion,
-    comparison,
-    changeDetection,
+    versionList: versionListQuery.data ?? null,
+    latestScan: latestScanQuery.data ?? null,
+    currentVersion: fetchVersionMutation.data ?? null,
+    comparison: compareMutation.data ?? null,
+    changeDetection: detectChangesMutation.data ?? null,
+
+    // For backward compatibility with ScanHistoryPanel
+    scanHistory: null,
 
     // Actions
     createScan,
     detectAndCreateScan,
-    fetchScanHistory,
+    fetchScanHistory: fetchVersionList, // Alias
     fetchVersionList,
     fetchLatestScan,
     fetchVersion,

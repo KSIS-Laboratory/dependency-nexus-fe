@@ -26,7 +26,7 @@ import type {
 
 export default function Dashboard() {
   const router = useRouter();
-  const { isAuthenticated, isLoading: authLoading, githubToken, jwtToken} = useAuth();
+  const { isAuthenticated, isLoading: authLoading, githubToken, jwtToken } = useAuth();
   const { repositories, isLoading: reposLoading, error: repoError } = useRepositories(githubToken);
   const [user, setUser] = useState<User | null>(null);
   const [userLoading, setUserLoading] = useState(true);
@@ -62,8 +62,14 @@ export default function Dashboard() {
     loadUser();
   }, [authLoading, isAuthenticated]);
 
+  // Memoize repository IDs to prevent unnecessary re-fetches
+  const repoIds = useMemo(
+    () => repositories.map((r) => r.full_name),
+    [repositories.map((r) => r.full_name).join(",")] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   useEffect(() => {
-    if (!jwtToken || repositories.length === 0) {
+    if (!jwtToken || repoIds.length === 0) {
       setRepoInsights({});
       setInsightsLoading(false);
       setInsightsError(null);
@@ -76,10 +82,10 @@ export default function Dashboard() {
 
     const loadInsights = async () => {
       const results = await Promise.allSettled(
-        repositories.map(async (repo) => {
-          const history = await VulnerabilityAPIService.getScanHistory(jwtToken, repo.full_name);
+        repoIds.map(async (repoFullName) => {
+          const history = await VulnerabilityAPIService.getScanHistory(jwtToken, repoFullName);
           const latestScan: ScanHistoryEntry | null = history?.scans?.[0] ?? null;
-          return [repo.full_name, {
+          return [repoFullName, {
             totalScans: history?.total_scans ?? history?.scans?.length ?? 0,
             latestScan,
           }] as const;
@@ -120,7 +126,7 @@ export default function Dashboard() {
     return () => {
       isCancelled = true;
     };
-  }, [jwtToken, repositories, refreshCounter]);
+  }, [jwtToken, repoIds.join(","), refreshCounter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dashboardStats: DashboardStats = useMemo(() => {
     const repoCount = repositories.length;

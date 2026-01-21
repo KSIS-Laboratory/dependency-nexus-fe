@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Filter, ChevronDown, X, Check } from "lucide-react";
+import { Filter, ChevronDown, X } from "lucide-react";
 import { Repository } from "@/lib/github";
 
 export interface RepositoryFilters {
     owners: string[];
     languages: string[];
-    visibility: "all" | "public" | "private";
+    visibility: "all" | "public" | "private" | "fork" | "starred";
     scanned: "all" | "scanned" | "not_scanned";
 }
 
@@ -24,6 +24,19 @@ export const defaultFilters: RepositoryFilters = {
     scanned: "all",
 };
 
+// Helper function to get visibility label
+function getVisibilityLabel(visibility: RepositoryFilters["visibility"]): string {
+    const labels: Record<RepositoryFilters["visibility"], string> = {
+        all: "All",
+        public: "Public",
+        private: "Private",
+        fork: "Fork",
+        starred: "Starred",
+    };
+    return labels[visibility];
+}
+
+
 export function RepositoryFilterBar({
     repositories,
     filters,
@@ -37,6 +50,8 @@ export function RepositoryFilterBar({
         const languages = new Set<string>();
         let publicCount = 0;
         let privateCount = 0;
+        let forkCount = 0;
+        let starredCount = 0;
         let scannedCount = 0;
 
         repositories.forEach((repo) => {
@@ -44,13 +59,15 @@ export function RepositoryFilterBar({
             if (repo.language) languages.add(repo.language);
             if (repo.private) privateCount++;
             else publicCount++;
+            if (repo.fork) forkCount++;
+            if (repo.is_starred) starredCount++;
             if (repo.has_history) scannedCount++;
         });
 
         return {
-            uniqueOwners: Array.from(owners).sort(),
-            uniqueLanguages: Array.from(languages).sort(),
-            stats: { publicCount, privateCount, scannedCount },
+            uniqueOwners: Array.from(owners).sort((a, b) => a.localeCompare(b)),
+            uniqueLanguages: Array.from(languages).sort((a, b) => a.localeCompare(b)),
+            stats: { publicCount, privateCount, forkCount, starredCount, scannedCount },
         };
     }, [repositories]);
 
@@ -126,7 +143,7 @@ export function RepositoryFilterBar({
                         ))}
                         {filters.visibility !== "all" && (
                             <span className="badge badge-outline gap-1">
-                                {filters.visibility === "public" ? "Public" : "Private"}
+                                {getVisibilityLabel(filters.visibility)}
                                 <button onClick={() => handleVisibilityChange("all")} className="hover:text-error">
                                     <X className="h-3 w-3" />
                                 </button>
@@ -195,7 +212,7 @@ export function RepositoryFilterBar({
                         <div>
                             <h4 className="font-semibold text-sm mb-2 text-base-content/70">Visibility</h4>
                             <div className="space-y-1">
-                                {(["all", "public", "private"] as const).map((option) => (
+                                {(["all", "public", "private", "fork", "starred"] as const).map((option) => (
                                     <label key={option} className="flex items-center gap-2 cursor-pointer hover:bg-base-200 p-1 rounded">
                                         <input
                                             type="radio"
@@ -207,6 +224,8 @@ export function RepositoryFilterBar({
                                         <span className="text-sm capitalize">{option}</span>
                                         {option === "public" && <span className="text-xs text-base-content/50">({stats.publicCount})</span>}
                                         {option === "private" && <span className="text-xs text-base-content/50">({stats.privateCount})</span>}
+                                        {option === "fork" && <span className="text-xs text-base-content/50">({stats.forkCount})</span>}
+                                        {option === "starred" && <span className="text-xs text-base-content/50">({stats.starredCount})</span>}
                                     </label>
                                 ))}
                             </div>
@@ -276,6 +295,8 @@ export function applyRepositoryFilters(
         // Visibility filter
         if (filters.visibility === "public" && repo.private) return false;
         if (filters.visibility === "private" && !repo.private) return false;
+        if (filters.visibility === "fork" && !repo.fork) return false;
+        if (filters.visibility === "starred" && !repo.is_starred) return false;
 
         // Scanned status filter
         if (filters.scanned === "scanned" && !repo.has_history) return false;

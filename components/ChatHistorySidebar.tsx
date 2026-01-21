@@ -44,7 +44,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
             <div className="p-3 border-b border-base-content/10">
                 <h3 className="text-sm font-semibold text-base-content/80 flex items-center gap-2">
                     <History className="h-4 w-4" />
-                    ประวัติการสนทนา ({sessions.length})
+                    Chat History ({sessions.length})
                 </h3>
             </div>
 
@@ -52,7 +52,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
             <div className="flex-1 overflow-y-auto">
                 {sessions.length === 0 ? (
                     <div className="p-4 text-center text-sm text-base-content/50">
-                        ยังไม่มีประวัติการสนทนา
+                        No chat history
                     </div>
                 ) : (
                     <ul className="space-y-1 p-2 list-none">
@@ -73,7 +73,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
                                         {session.title || "New Chat"}
                                     </p>
                                     <p className="text-xs text-base-content/50">
-                                        {new Date(session.updatedAt).toLocaleDateString('th-TH', {
+                                        {new Date(session.updatedAt).toLocaleDateString('en-US', {
                                             month: 'short',
                                             day: 'numeric',
                                             hour: '2-digit',

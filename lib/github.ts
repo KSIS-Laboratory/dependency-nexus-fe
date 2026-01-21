@@ -14,6 +14,13 @@ export interface Repository {
   updated_at: string;
   default_branch: string;
   has_history?: boolean;
+  fork?: boolean;
+  is_starred?: boolean;
+  source?: {
+    full_name: string;
+    html_url: string;
+    owner: string;
+  };
 }
 
 export interface DependencyFile {

@@ -11,7 +11,13 @@ export type ChatbotContextPayload = {
   autoSend?: boolean;
 };
 
+export type ChatbotOpenWithRepoPayload = {
+  repoFullName: string;
+  repoName: string;
+};
+
 const CHATBOT_CONTEXT_EVENT = "chatbot:context" as const;
+const CHATBOT_OPEN_WITH_REPO_EVENT = "chatbot:openWithRepo" as const;
 
 export function triggerChatbotContext(payload: ChatbotContextPayload) {
   if (globalThis.window === undefined) {
@@ -19,6 +25,18 @@ export function triggerChatbotContext(payload: ChatbotContextPayload) {
   }
 
   const event = new CustomEvent(CHATBOT_CONTEXT_EVENT, { detail: payload });
+  globalThis.window.dispatchEvent(event);
+}
+
+/**
+ * Open the chatbot widget and select a specific repository
+ */
+export function openChatWithRepo(payload: ChatbotOpenWithRepoPayload) {
+  if (globalThis.window === undefined) {
+    return;
+  }
+
+  const event = new CustomEvent(CHATBOT_OPEN_WITH_REPO_EVENT, { detail: payload });
   globalThis.window.dispatchEvent(event);
 }
 
