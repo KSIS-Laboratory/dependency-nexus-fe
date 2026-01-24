@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useRepositories } from "@/hooks/useRepositories";
+import { useRepositoryScanInfo } from "@/hooks/useRepositoryScanInfo";
 import { AuthService, User } from "@/lib/auth";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { ErrorMessage } from "@/components/ErrorMessage";
@@ -17,7 +18,7 @@ import { FolderGit2, ArrowLeft, Loader2 } from "lucide-react";
 
 export default function RepositoriesPage() {
   const router = useRouter();
-  const { isAuthenticated, isLoading: authLoading, githubToken } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, githubToken, jwtToken } = useAuth();
   const {
     repositories,
     isLoading: reposLoading,
@@ -33,6 +34,15 @@ export default function RepositoriesPage() {
 
   // Intersection Observer for infinite scroll
   const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  // Memoize repository names for scan info fetching
+  const repoNames = useMemo(
+    () => repositories.map((r) => r.full_name),
+    [repositories]
+  );
+
+  // Fetch scan info for all repositories
+  const { scanInfo } = useRepositoryScanInfo(jwtToken, repoNames);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -155,6 +165,7 @@ export default function RepositoriesPage() {
                   <RepositoryCard
                     repository={repo}
                     onClick={() => handleAnalyze(repo.full_name)}
+                    lastScanDate={scanInfo[repo.full_name]?.lastScanDate}
                   />
                 </div>
               ))}

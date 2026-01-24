@@ -5,13 +5,16 @@ import { useState, useEffect } from "react";
 import { API_URL, API_ENDPOINTS } from "@/lib/constants";
 import { AuthService } from "@/lib/auth";
 import { openChatWithRepo } from "@/lib/chatbot";
+import ScanStatusIndicator from "@/components/ScanStatusIndicator";
 
 interface RepositoryCardProps {
   readonly repository: Repository;
   readonly onClick: () => void;
+  /** Last scan date for this repository */
+  readonly lastScanDate?: Date | null;
 }
 
-export function RepositoryCard({ repository, onClick }: RepositoryCardProps) {
+export function RepositoryCard({ repository, onClick, lastScanDate }: RepositoryCardProps) {
   const [hasHistory, setHasHistory] = useState(repository.has_history);
 
   useEffect(() => {
@@ -124,6 +127,15 @@ export function RepositoryCard({ repository, onClick }: RepositoryCardProps) {
               <div className="badge badge-warning badge-sm gap-1 font-medium">
                 <Star className="h-3 w-3 fill-current" /> Starred
               </div>
+            )}
+            {/* Scan Status Indicator */}
+            {lastScanDate !== undefined && (
+              <ScanStatusIndicator
+                lastScanDate={lastScanDate}
+                variant="badge"
+                warningDays={30}
+                staleDays={60}
+              />
             )}
           </div>
         </div>

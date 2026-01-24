@@ -15,6 +15,7 @@ import { DashboardStatsGrid } from "@/components/dashboard/DashboardStatsGrid";
 import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard";
 import { RiskDistributionCard } from "@/components/dashboard/RiskDistributionCard";
 import { ProjectHealthSection } from "@/components/dashboard/ProjectHealthSection";
+import ScanReminderBanner from "@/components/ScanReminderBanner";
 import type {
   ScanHistoryEntry,
   RepositoryScanSummary,
@@ -228,6 +229,13 @@ export default function Dashboard() {
           onRefresh={handleRefreshInsights}
           onViewRepositories={handleNavigateToRepositories}
           onViewGraph={handleNavigateToVisualization}
+        />
+
+        {/* Scan Reminder Banner */}
+        <ScanReminderBanner
+          lastScanDate={dashboardStats.lastScan ? new Date(dashboardStats.lastScan) : null}
+          onScanClick={handleNavigateToRepositories}
+          reminderDays={30}
         />
 
         {insightsError && (
