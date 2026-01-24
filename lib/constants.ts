@@ -35,6 +35,8 @@ export const API_ENDPOINTS = {
   },
   VULNERABILITIES: {
     SCAN: "/api/vulnerabilities/scan",
+    SCAN_START: "/api/vulnerabilities/scan/start",
+    SCAN_STATUS: (jobId: string) => `/api/vulnerabilities/scan/status/${jobId}`,
     SCAN_SINGLE: (ecosystem: string, packageName: string, version?: string) => {
       const baseUrl = `/api/vulnerabilities/scan/${ecosystem}/${packageName}`;
       return version ? `${baseUrl}?version=${version}` : baseUrl;
