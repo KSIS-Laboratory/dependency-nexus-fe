@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthService, User } from "@/lib/auth";
 import KnowledgeGraph from "@/components/KnowledgeGraph";
-import { ArrowLeft, Network, GitMerge, Share2, Info, ChevronRight, Home, Grid3X3, TrendingUp } from "lucide-react";
+import { ArrowLeft, Network, GitMerge, Share2, Info, Home, Grid3X3, TrendingUp } from "lucide-react";
 import { HierarchicalEdgeBundling } from "@/components/HierarchicalEdgeBundling";
 import { CollapsibleTree } from "@/components/CollapsibleTree";
 import { SecurityHeatmap } from "@/components/SecurityHeatmap";

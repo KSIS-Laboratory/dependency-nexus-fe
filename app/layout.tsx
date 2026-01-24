@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { QueryProvider } from "@/components/QueryProvider";
+import CopyrightFooter from "@/components/CopyrightFooter";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -45,7 +46,12 @@ export default function RootLayout({
         />
         {/* <DecorativeElements /> */}
         <ThemeProvider>
-          <QueryProvider>{children}</QueryProvider>
+          <QueryProvider>
+            <div className="flex flex-col min-h-screen">
+              <main className="flex-1">{children}</main>
+              <CopyrightFooter />
+            </div>
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>
