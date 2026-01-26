@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { GitBranch, Package, CirclePlus, CircleMinus, Diff, TrendingUp, TrendingDown, AlertCircle, History, Clock, ChevronDown, Eye, ArrowRightLeft } from "lucide-react";
+import { GitBranch, Package, CirclePlus, CircleMinus, Diff, AlertCircle, History, Clock, ChevronDown, Eye, ArrowRightLeft } from "lucide-react";
 import { useScanHistory } from "@/hooks/useScanHistory";
 import type { DependencyScanVersion } from "@/lib/scan-history";
 import { EmptyState } from "@/components/EmptyState";
