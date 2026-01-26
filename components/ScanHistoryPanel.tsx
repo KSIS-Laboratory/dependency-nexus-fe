@@ -75,7 +75,7 @@ export function ScanHistoryPanel({
 
   // Auto-select latest two versions for comparison
   useEffect(() => {
-    if (versionList && versionList.versions.length >= 2 && !selectedVersions.from && !selectedVersions.to) {
+    if (versionList?.versions && versionList.versions.length >= 2 && !selectedVersions.from && !selectedVersions.to) {
       setSelectedVersions({
         from: versionList.versions[0].version_id,
         to: versionList.versions[1].version_id,
@@ -135,7 +135,7 @@ export function ScanHistoryPanel({
     );
   }
 
-  if (!versionList || versionList.versions.length === 0) {
+  if (!versionList?.versions || versionList.versions.length === 0) {
     return (
       <EmptyState
         title="No scan history found"
