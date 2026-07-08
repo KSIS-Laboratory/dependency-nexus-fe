@@ -113,6 +113,7 @@ Commercial use of this software or any derivative works requires explicit writte
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 
 Citation
+```
 @inproceedings{Urkissusadon.itccscc.2026,
   title={Visualization techniques for cross-repository security vulnerability detection},
   author={Tanawat Ukrisussadon, Nakorn Boonprasong and Tanaboon Tongbuasirilai},
@@ -121,3 +122,4 @@ Citation
   year={2026},
   address={Bangkok, Thailand}
 }
+```
